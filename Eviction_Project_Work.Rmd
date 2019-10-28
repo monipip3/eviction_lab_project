@@ -1,0 +1,182 @@
+---
+title: "DS_Project"
+author: "Allison Shafer"
+date: "10/27/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+# call in libraries to use
+
+suppressMessages(library(tidyverse))
+suppressMessages(library(modelr))
+suppressMessages(library(lubridate))
+suppressMessages(library(stringr))
+suppressMessages(library(purrr))
+suppressMessages(library(gganimate))
+suppressMessages(library(readxl))
+#install.packages('gifski')
+suppressMessages(library(gifski))
+install.packages('tidycensus')
+
+```
+
+
+```{r download data}
+
+# set up a data directory if it does not exist already
+if(!file.exists("./data")) {dir.create("./data")}
+
+# store urls needed - right click on excel symbol and select 
+# copy link address
+eviction_US_all <- c("https://eviction-lab-data-downloads.s3.amazonaws.com/US/all.csv")
+
+# check to see if URL saved to variable
+eviction_US_all
+
+#download the csv file
+
+download.file(eviction_US_all, destfile = "./data/eviction_US_all.csv", mode = "wb")
+
+# read the csv file into R and save into dataframe
+
+eviction_US_all <- read_csv("./data/eviction_US_all.csv")
+
+eviction_US_all
+
+```
+
+```{r rural urban}
+
+# download and load urbal/rural classifications
+
+# set up a data directory if it does not exist already
+if(!file.exists("./data")) {dir.create("./data")}
+
+# store urls needed - right click on excel symbol and select 
+# copy link address
+urban_rural <- c("http://www2.census.gov/geo/docs/reference/ua/County_Rural_Lookup.xlsx")
+
+#download the .xlsx file
+
+download.file(urban_rural, destfile = "./data/urban_rural.xlsx", mode = "wb")
+
+#read xlsx into R
+
+urban_rural <- read_excel(skip = 3, "./data/urban_rural.xlsx")
+
+names(urban_rural)
+
+# clean data set
+urban_rural <- urban_rural %>%
+  rename("Percent_Rural" = "2010 Census \r\nPercent Rural",
+         "GEOID" = "2015 GEOID") 
+
+# check names were updated
+names(urban_rural)
+
+# select only needed fields
+urban_rural <-urban_rural %>%
+  mutate(rural_flag = ifelse(round(Percent_Rural, 3) > 50, 1, 0)) %>%
+  select(GEOID, State, Percent_Rural, rural_flag) 
+
+
+# view cleaned up dataset
+urban_rural
+
+
+```
+
+
+
+```{r data exploration, echo = false, eval = false}
+
+#look at col names
+colnames(eviction_US_all)
+
+#look at unique values for each variable
+map(eviction_US_all, unique)
+
+
+```
+
+```{r make county dataset}
+
+eviction_county <- eviction_US_all %>%
+  right_join(urban_rural, key = "GEOID")
+         
+eviction_county
+
+```
+
+```{r make state dataset}
+
+eviction_state <- eviction_US_all %>%
+  filter(nchar(GEOID) == 2)
+         
+eviction_state
+
+```
+
+```{r make place dataset}
+
+eviction_place <- eviction_US_all %>%
+  filter(nchar(GEOID) == 7)
+         
+eviction_place
+
+```
+
+```{r EDA state level data}
+
+# look at dataset
+
+names(eviction_state)
+
+summary(eviction_state)
+
+eviction_state %>%
+  filter(year == 2016) %>%
+  ggplot(aes(x = name, y = `poverty-rate`)) +
+  geom_bar(stat = 'identity') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+```{r EDA county level data}
+
+# look at data set
+eviction_county
+
+ncol(eviction_county)
+
+summary(eviction_county)
+
+glimpse(eviction_county)
+
+eviction_county %>%
+  group_by(GEOID) %
+
+```
+
+```{r}
+
+ggplot(eviction_state, aes(`eviction-rate`, evictions, size = population)) +
+  geom_point(alpha = 0.7, show.legend = FALSE) +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  facet_wrap(~ name) +
+  # Here comes the gganimate specific bits
+  labs(title = 'Year: {frame_time}', x = 'GDP per capita', y = 'life expectancy') +
+  transition_states(year) +
+  ease_aes('linear')
+
+```
+
+```{r map attempt}
+data("county_laea", package = "tidycensus")
+
+data("state_laea", package = "tidycensus")
+```
