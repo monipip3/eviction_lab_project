@@ -1,6 +1,6 @@
 ---
 title: "DS_Project"
-author: "Allison Shafer"
+author: "Allison Shafer, Monica Puerto, Alison Ragan"
 date: "10/27/2019"
 output: html_document
 ---
@@ -16,15 +16,14 @@ suppressMessages(library(stringr))
 suppressMessages(library(purrr))
 suppressMessages(library(gganimate))
 suppressMessages(library(readxl))
-#install.packages('gifski')
 suppressMessages(library(gifski))
-install.packages('tidycensus')
-
+suppressMessages(library(tidycensus))
+suppressMessages(library(rvest))
 ```
 
 
 ```{r download data}
-
+start = Sys.time()
 # set up a data directory if it does not exist already
 if(!file.exists("./data")) {dir.create("./data")}
 
@@ -37,14 +36,16 @@ eviction_US_all
 
 #download the csv file
 
-download.file(eviction_US_all, destfile = "./data/eviction_US_all.csv", mode = "wb")
+download.file(eviction_US_all, destfile = "./data/eviction_US_all.csv", mode = "wb") #this takes a bit ranges from 2-5 minutes, over bad WIFI might take 10 min
 
 # read the csv file into R and save into dataframe
 
 eviction_US_all <- read_csv("./data/eviction_US_all.csv")
 
 eviction_US_all
+end <- Sys.time()
 
+print(end-start)
 ```
 
 ```{r rural urban}
@@ -88,6 +89,72 @@ urban_rural
 
 ```
 
+```{r Webscrape US Labor Stats}
+setwd("/Users/monicapuerto/Desktop/Github/eviction_lab_project")
+
+start <- Sys.time()
+if(!file.exists("./data/labor_data")) {dir.create("./data/labor_data")}
+suppressPackageStartupMessages(library(lubridate))
+suppressPackageStartupMessages(library(rvest))
+
+#save url into a variable
+url <- "https://www.bls.gov/lau/#tables"
+
+#download the html content using read_html
+download.file(url,destfile="./data/uslabor.html")
+us_county_labor_html <- read_html("./data/uslabor.html")
+
+#extract the xslx 
+us_county_labor_html %>% 
+   rvest::html_nodes("ul") %>%
+        rvest::html_nodes("li") %>%
+        rvest::html_nodes("a") %>%
+        rvest::html_attr("href") %>%
+        str_subset(".xlsx$") -> us_labor_urls
+
+#domain
+domain <- "https://www.bls.gov"
+
+#paste domain to urls
+str_c(domain,us_labor_urls) -> us_labor_urls
+
+#only need years from 2000 to 2016
+us_labor_urls[3:19] -> us_labor_2000_2016
+years <- rep(2000:2016,1)
+
+#a for loop that downloads each file
+for(i in seq_along(us_labor_2000_2016)){
+  download.file(us_labor_2000_2016[i],destfile = paste("./data/labor_data/",years[i],".xslx",sep=""),mode="wb")
+}
+#save the files pertaining to us labor
+labor_files <- dir("./data/labor_data")
+#create a function that downloads each url and saves it #into a dataframe
+
+read_files <- function(x){
+read_excel(path= paste("./data/labor_data/",x,sep=""),skip = 7,col_names = c("laus_code","state_fips_code","county_fips_code","county_name","year","","labor_force","employed","unemployed","unemployment_rate"),sheet = 1,na="")
+}
+
+#map the function to read each file 
+map(labor_files,read_files) -> all_labor_data
+
+#join all the US labor tables
+all_labor_data %>% reduce(full_join) -> all_labor_data
+
+#remove some rows that have NA in Year and remove emoty column next to year
+filter(all_labor_data,!is.na(year)) %>% select(-X__1) -> all_labor_data
+ 
+ end<- Sys.time()
+
+ 
+ print(end-start)
+ 
+ #creating a GEOID to join 
+ all_labor_data$GEOID <- str_c(all_labor_data$state_fips_code,all_labor_data$county_fips_code)
+ 
+#change year to integer
+ all_labor_data$year <- as.integer(all_labor_data$year)
+ 
+```
 
 
 ```{r data exploration, echo = false, eval = false}
@@ -102,11 +169,12 @@ map(eviction_US_all, unique)
 ```
 
 ```{r make county dataset}
-
+#County Table joined with 2 additional variables : rural flag and unemployment rate
 eviction_county <- eviction_US_all %>%
-  right_join(urban_rural, key = "GEOID")
+  right_join(urban_rural, key = "GEOID") %>% 
+  left_join(select(all_labor_data,GEOID,year,unemployment_rate), by =c("GEOID" = "GEOID", "year"="year"))
          
-eviction_county
+eviction_county 
 
 ```
 
