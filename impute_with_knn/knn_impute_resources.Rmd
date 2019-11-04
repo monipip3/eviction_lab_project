@@ -1,0 +1,28 @@
+---
+title: "KNN Imputation Readings"
+author: "Allison Ragan"
+date: "11/4/2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The links below are for the purposes of researching how to impute missing data with KNN.  
+
+[KNN imputation explanation] (https://stats.stackexchange.com/questions/327074/k-nearest-neighbor-imputation-explanation)
+
+[Towards Data Science (language used unknown)] (https://towardsdatascience.com/the-use-of-knn-for-missing-values-cf33d935c637)
+
+[knn.impute function in R] (https://www.rdocumentation.org/packages/bnstruct/versions/1.0.6/topics/knn.impute)
+
+[impute.knn function in R] (https://www.rdocumentation.org/packages/impute/versions/1.46.0/topics/impute.knn)
+
+[Missing Value Treatments in R] (https://www.r-bloggers.com/missing-value-treatment/)
+
+[rdrr.io knn imputation] (https://rdrr.io/cran/VIM/man/kNN.html)
+
+[KNN imputation packages in R] (https://stats.stackexchange.com/questions/61110/knn-imputation-r-packages/213152)
+
+[Handling Missing Data (examples in Python -- ONLY for reference)] (https://towardsdatascience.com/handling-missing-values-in-machine-learning-part-2-222154b4b58e)
