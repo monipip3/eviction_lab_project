@@ -217,7 +217,7 @@ eviction_county %>%
 # data("state_laea", package = "tidycensus")
 ```
 
-```{r allie eda}
+```{r AR eda_init}
 plot_intro(eviction_county)
 
 # 23% of county df missing eviction rate 
@@ -240,8 +240,6 @@ ggplot(eviction_county, aes(x = `Percent_Rural`, y = `eviction-rate`)) + geom_po
 ggplot(eviction_county, aes(x = `pct-white`, y = `eviction-rate`)) + geom_point() + geom_smooth(method='lm',formula=y~x) 
 ```
 
-```{r allie knn}
-# is our data missing completely at random or missing at random? 
-# for determining similar counties, should probably use percent_rural, population, poverty-rate, rent-burden
-knn <- subset(eviction_county, select = c(population, `poverty-rate`, `renter-occupied-households`, `pct-renter-occupied`, `median-gross-rent`, `median-household-income`, `median-property-value`, `rent-burden`, `pct-white`, `pct-af-am`, `pct-hispanic`, `pct-am-ind`, `pct-asian`, `pct-nh-pi`, `pct-multiple`, `pct-other`, `evictions`, `Percent_Rural`, `rural_flag`,`unemployment_rate`))
-```
+1. use knn to find similar counties -- filtered by county 
+2. one big us map -- filter by county 
+3. show county over time (maybe stack with similar counties?)
