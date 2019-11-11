@@ -3,3 +3,8 @@
 
 #ignore the DS_STore
 .DS_Store
+
+
+#ignore R Data
+
+.RData
