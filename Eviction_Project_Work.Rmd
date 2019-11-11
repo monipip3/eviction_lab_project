@@ -10,6 +10,7 @@ output: html_document
 # call in libraries to use
 
 suppressMessages(library(tidyverse))
+suppressMessages(library(DataExplorer))
 suppressMessages(library(modelr))
 suppressMessages(library(lubridate))
 suppressMessages(library(stringr))
@@ -19,22 +20,20 @@ suppressMessages(library(readxl))
 suppressMessages(library(gifski))
 suppressMessages(library(tidycensus))
 suppressMessages(library(rvest))
-<<<<<<< Updated upstream
-=======
 suppressMessages(library(tmap))
 suppressMessages(library(spData))
 suppressMessages(library(tigris))
 suppressMessages(library(sf))
+suppressMessages(library(gridExtra))
+suppressMessages(library(corrplot))
 
 # 11/8: Added packages "tmap", "spData", "tigris"
 #install.packages("tmap")
 #install.packages("spData")
 #install.packages("tigris")
 
->>>>>>> Stashed changes
 ```
-
-
+# Data Downloads
 ```{r download data - eviction dataset}
 
 # set up a data directory if it does not exist already
@@ -54,19 +53,9 @@ download.file(eviction_US_all, destfile = "./data/eviction_US_all.csv", mode = "
 eviction_US_all <- read_csv("./data/eviction_US_all.csv")
 
 eviction_US_all
-
-#get download speed statistics
-start <- Sys.time()
-end <- Sys.time()
-
-print(end-start)
 ```
 
-<<<<<<< Updated upstream
-```{r rural urban}
-=======
 ```{r import rural urban}
->>>>>>> Stashed changes
 
 # download and load urbal/rural classifications
 
@@ -100,19 +89,11 @@ urban_rural <-urban_rural %>%
   mutate(rural_flag = ifelse(round(Percent_Rural, 3) > 50, 1, 0)) %>%
   select(GEOID, State, Percent_Rural, rural_flag) 
 
-
 # view cleaned up dataset
 urban_rural
-
 ```
 
 ```{r Webscrape US Labor Stats}
-<<<<<<< Updated upstream
-setwd("/Users/monicapuerto/Desktop/Github/eviction_lab_project")
-=======
->>>>>>> Stashed changes
-
-start <- Sys.time()
 if(!file.exists("./data/labor_data")) {dir.create("./data/labor_data")}
 
 #save url into a variable
@@ -159,13 +140,12 @@ map(labor_files,read_files) -> all_labor_data
 
 #join all the US labor tables
 all_labor_data %>% reduce(full_join) -> all_labor_data
-
+```
+# Data Cleaning
+``` {r clean up data set}
 #remove some rows that have NA in Year and remove empty column next to year
 filter(all_labor_data,!is.na(year)) %>% select(-X__1) -> all_labor_data
  
- end<- Sys.time()
-
- print(end-start)
  
 #creating a GEOID to join 
 all_labor_data$GEOID <- str_c(all_labor_data$state_fips_code,all_labor_data$county_fips_code)
@@ -176,25 +156,29 @@ all_labor_data$year <- as.integer(all_labor_data$year)
  
 ```
 
-```{r make county dataset}
+# Downloading Spatial Dataset
 
-<<<<<<< Updated upstream
-```{r data exploration, echo = false, eval = false}
+```{r download county spatial data}
 
-#look at col names
-colnames(eviction_US_all)
+# set up a data directory if it does not exist already
+if(!file.exists("./data")) {dir.create("./data")}
 
-#look at unique values for each variable
-map(eviction_US_all, unique)
+#download county shapefiles
+download.file("https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_county_500k.zip", destfile = "./data/county_shp.zip")
 
+spatial_data <- "./data/county_shp.zip"
+
+unzip(spatial_data, overwrite = TRUE, exdir = "./data/spatial/county_shp")
+
+county_boundaries <- st_read("./data/spatial/county_shp/cb_2018_us_county_500k.shp")
+county_boundaries
 
 ```
+# Creating Additional Datasets From Existing Data
 
 ```{r make county dataset}
 #County Table joined with 2 additional variables : rural flag and unemployment rate
-=======
-#County Table joined with 2 additional variables: rural flag and unemployment rate
->>>>>>> Stashed changes
+
 eviction_county <- eviction_US_all %>%
   right_join(urban_rural, key = "GEOID") %>% 
   left_join(select(all_labor_data,GEOID,year,unemployment_rate), by =c("GEOID" = "GEOID", "year"="year"))
@@ -212,42 +196,46 @@ eviction_state
 
 ```
 
-```{r make place dataset}
-<<<<<<< Updated upstream
+# Data Exploration
 
-eviction_place <- eviction_US_all %>%
-  filter(nchar(GEOID) == 7)
-         
-eviction_place
+```{r data exploration, echo = false, eval = false}
 
-```
+#look at col names
+colnames(eviction_US_all)
 
-=======
-
-eviction_place <- eviction_US_all %>%
-  filter(nchar(GEOID) == 7)
-         
-eviction_place
+#look at unique values for each variable
+map(eviction_US_all, unique)
 
 ```
 
-```{r download county spatial data}
+```{r Chunk Nulls Exploration}
+#We have 22.5% missing of eviction rate data in county and 11% missing in state. ALl 
+missing_state <- plot_missing(eviction_state)
+missing_eviction <- plot_missing(eviction_county)
+#colSums(is.na(eviction_state))/nrow(eviction_state)
+#colSums(is.na(eviction_county))/nrow(eviction_county)
+grid.arrange(missing_state,missing_eviction,ncol=2)
+```
 
-# set up a data directory if it does not exist already
-if(!file.exists("./data")) {dir.create("./data")}
+```{r Correlation Matrix}
 
-#download county shapefiles
-download.file("https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_county_500k.zip", destfile = "./data/county_shp.zip")
-
-spatial_data <- "./data/county_shp.zip"
-
-unzip(spatial_data, overwrite = TRUE, exdir = "./data/spatial/county_shp")
+#plot_correlation(na.omit(eviction_county), maxcat = 5L)
+na.omit(eviction_county) %>%
+select_if(is.numeric) %>%
+  as.matrix() %>% cor()  -> cor_matrix
 
 
+corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),20, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black")
+#corrplot(cor_matrix, type="upper", order="hclust", sig.level = 0.01, insig = "blank")
+```
 
-county_boundaries <- st_read("./data/spatial/county_shp/cb_2018_us_county_500k.shp")
-county_boundaries
+```{r Race Other %}
+#creating a new variable of nonwhite percentage
+eviction_county$pct_nonwhite <- 100 - eviction_county$`pct-white`
 
+na.omit(eviction_county) %>%
+select_if(is.numeric) %>%
+  as.matrix() %>% cor()  -> cor_matrix
 ```
 
 ```{r data exploration, echo = false, eval = false}
@@ -261,7 +249,6 @@ summary(eviction_US_all)
 summary(all_labor_data)
 
 ```
-
 
 ```{r EDA county - eviction rate}
 
@@ -284,8 +271,30 @@ eviction_county %>%
 
 ```
 
+```{r EDA state level data}
+corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),20, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black")
+```
 
->>>>>>> Stashed changes
+```{r Distribution of Variables}
+eviction_county %>%
+  select(-year,-`eviction-filing-rate`,-`eviction-filings`, -evictions,-imputed, - `low-flag`,-subbed) %>% 
+  keep(is.numeric) %>%                     # Keep only numeric columns
+  gather() %>%                             # Convert to key-value pairs
+  ggplot(aes(value)) +                     # Plot the values
+    facet_wrap(~ key, scales = "free") +   # In separate panels
+    geom_density() 
+```
+
+```{r plotting Y against X}
+na.omit(eviction_county) %>%
+  select_if(is.numeric) %>%
+  gather(-`eviction-rate`,-population,-`rent-burden`, key = "var", value = "value") %>%
+  ggplot(aes(x = value, y = `eviction-rate`, color = population)) +
+    geom_point() +
+    facet_wrap(~ var, scales = "free") +
+    theme_bw()
+```
+
 ```{r EDA state level data}
 
 # look at dataset
@@ -304,44 +313,18 @@ eviction_state %>%
 
 ```
 
-
 ```{r EDA county level data}
 
 # look at data set
-eviction_county
-<<<<<<< Updated upstream
-
-ncol(eviction_county)
-
-summary(eviction_county)
-
-glimpse(eviction_county)
-
 eviction_county %>%
   group_by(GEOID) %
 
-```
-=======
-
 ncol(eviction_county)
->>>>>>> Stashed changes
-
 summary(eviction_county)
-
 glimpse(eviction_county)
 
-eviction_county %>%
-  group_by(GEOID) 
-
 ```
 
-<<<<<<< Updated upstream
-```{r map attempt}
-data("county_laea", package = "tidycensus")
-
-data("state_laea", package = "tidycensus")
-```
-=======
 ```{r gganimate eviction for state}
 
 # look at eviction rate over time per state -- create gganimate
@@ -362,7 +345,7 @@ eviction_state %>%
   theme_bw()
 ```
 
-
+# Set up Spatial Datasets for Mapping
 ```{r set up spatial datasets}
 
 # get Census TIGER shapefiles for state
@@ -381,4 +364,3 @@ eviction_by_county <- eviction_county %>%
 
 eviction_by_county
 ```
->>>>>>> Stashed changes
