@@ -19,11 +19,24 @@ suppressMessages(library(readxl))
 suppressMessages(library(gifski))
 suppressMessages(library(tidycensus))
 suppressMessages(library(rvest))
+<<<<<<< Updated upstream
+=======
+suppressMessages(library(tmap))
+suppressMessages(library(spData))
+suppressMessages(library(tigris))
+suppressMessages(library(sf))
+
+# 11/8: Added packages "tmap", "spData", "tigris"
+#install.packages("tmap")
+#install.packages("spData")
+#install.packages("tigris")
+
+>>>>>>> Stashed changes
 ```
 
 
-```{r download data}
-start = Sys.time()
+```{r download data - eviction dataset}
+
 # set up a data directory if it does not exist already
 if(!file.exists("./data")) {dir.create("./data")}
 
@@ -35,20 +48,25 @@ eviction_US_all <- c("https://eviction-lab-data-downloads.s3.amazonaws.com/US/al
 eviction_US_all
 
 #download the csv file
-
 download.file(eviction_US_all, destfile = "./data/eviction_US_all.csv", mode = "wb") #this takes a bit ranges from 2-5 minutes, over bad WIFI might take 10 min
 
 # read the csv file into R and save into dataframe
-
 eviction_US_all <- read_csv("./data/eviction_US_all.csv")
 
 eviction_US_all
+
+#get download speed statistics
+start <- Sys.time()
 end <- Sys.time()
 
 print(end-start)
 ```
 
+<<<<<<< Updated upstream
 ```{r rural urban}
+=======
+```{r import rural urban}
+>>>>>>> Stashed changes
 
 # download and load urbal/rural classifications
 
@@ -86,16 +104,16 @@ urban_rural <-urban_rural %>%
 # view cleaned up dataset
 urban_rural
 
-
 ```
 
 ```{r Webscrape US Labor Stats}
+<<<<<<< Updated upstream
 setwd("/Users/monicapuerto/Desktop/Github/eviction_lab_project")
+=======
+>>>>>>> Stashed changes
 
 start <- Sys.time()
 if(!file.exists("./data/labor_data")) {dir.create("./data/labor_data")}
-suppressPackageStartupMessages(library(lubridate))
-suppressPackageStartupMessages(library(rvest))
 
 #save url into a variable
 url <- "https://www.bls.gov/lau/#tables"
@@ -126,10 +144,12 @@ years <- rep(2000:2016,1)
 for(i in seq_along(us_labor_2000_2016)){
   download.file(us_labor_2000_2016[i],destfile = paste("./data/labor_data/",years[i],".xslx",sep=""),mode="wb")
 }
+
 #save the files pertaining to us labor
 labor_files <- dir("./data/labor_data")
-#create a function that downloads each url and saves it #into a dataframe
 
+
+#create a function that downloads each url and saves it #into a dataframe
 read_files <- function(x){
 read_excel(path= paste("./data/labor_data/",x,sep=""),skip = 7,col_names = c("laus_code","state_fips_code","county_fips_code","county_name","year","","labor_force","employed","unemployed","unemployment_rate"),sheet = 1,na="")
 }
@@ -140,23 +160,25 @@ map(labor_files,read_files) -> all_labor_data
 #join all the US labor tables
 all_labor_data %>% reduce(full_join) -> all_labor_data
 
-#remove some rows that have NA in Year and remove emoty column next to year
+#remove some rows that have NA in Year and remove empty column next to year
 filter(all_labor_data,!is.na(year)) %>% select(-X__1) -> all_labor_data
  
  end<- Sys.time()
 
- 
  print(end-start)
  
- #creating a GEOID to join 
- all_labor_data$GEOID <- str_c(all_labor_data$state_fips_code,all_labor_data$county_fips_code)
+#creating a GEOID to join 
+all_labor_data$GEOID <- str_c(all_labor_data$state_fips_code,all_labor_data$county_fips_code)
+ 
  
 #change year to integer
- all_labor_data$year <- as.integer(all_labor_data$year)
+all_labor_data$year <- as.integer(all_labor_data$year)
  
 ```
 
+```{r make county dataset}
 
+<<<<<<< Updated upstream
 ```{r data exploration, echo = false, eval = false}
 
 #look at col names
@@ -170,6 +192,9 @@ map(eviction_US_all, unique)
 
 ```{r make county dataset}
 #County Table joined with 2 additional variables : rural flag and unemployment rate
+=======
+#County Table joined with 2 additional variables: rural flag and unemployment rate
+>>>>>>> Stashed changes
 eviction_county <- eviction_US_all %>%
   right_join(urban_rural, key = "GEOID") %>% 
   left_join(select(all_labor_data,GEOID,year,unemployment_rate), by =c("GEOID" = "GEOID", "year"="year"))
@@ -188,6 +213,7 @@ eviction_state
 ```
 
 ```{r make place dataset}
+<<<<<<< Updated upstream
 
 eviction_place <- eviction_US_all %>%
   filter(nchar(GEOID) == 7)
@@ -196,6 +222,70 @@ eviction_place
 
 ```
 
+=======
+
+eviction_place <- eviction_US_all %>%
+  filter(nchar(GEOID) == 7)
+         
+eviction_place
+
+```
+
+```{r download county spatial data}
+
+# set up a data directory if it does not exist already
+if(!file.exists("./data")) {dir.create("./data")}
+
+#download county shapefiles
+download.file("https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_county_500k.zip", destfile = "./data/county_shp.zip")
+
+spatial_data <- "./data/county_shp.zip"
+
+unzip(spatial_data, overwrite = TRUE, exdir = "./data/spatial/county_shp")
+
+
+
+county_boundaries <- st_read("./data/spatial/county_shp/cb_2018_us_county_500k.shp")
+county_boundaries
+
+```
+
+```{r data exploration, echo = false, eval = false}
+
+#look at col names
+colnames(eviction_US_all)
+
+#look at summary of data
+summary(eviction_US_all)
+
+summary(all_labor_data)
+
+```
+
+
+```{r EDA county - eviction rate}
+
+# get top 100 counties with highest average evistion rate
+eviction_county %>%
+  group_by(GEOID) %>%
+  summarise(
+    avg_rate = mean(`eviction-rate`, na.rm = TRUE)
+  ) %>%
+  top_n(100) %>%
+  arrange(desc(avg_rate))
+
+
+# histogram of eviction rates in county dataset
+eviction_county %>%
+  group_by(`eviction-rate`) %>%
+  count() %>%
+  ggplot(aes(`eviction-rate`)) +
+  geom_histogram()
+
+```
+
+
+>>>>>>> Stashed changes
 ```{r EDA state level data}
 
 # look at dataset
@@ -204,11 +294,13 @@ names(eviction_state)
 
 summary(eviction_state)
 
+# look at 2016 
 eviction_state %>%
   filter(year == 2016) %>%
   ggplot(aes(x = name, y = `poverty-rate`)) +
   geom_bar(stat = 'identity') +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  coord_flip()
 
 ```
 
@@ -217,6 +309,7 @@ eviction_state %>%
 
 # look at data set
 eviction_county
+<<<<<<< Updated upstream
 
 ncol(eviction_county)
 
@@ -228,23 +321,64 @@ eviction_county %>%
   group_by(GEOID) %
 
 ```
+=======
 
-```{r}
+ncol(eviction_county)
+>>>>>>> Stashed changes
 
-ggplot(eviction_state, aes(`eviction-rate`, evictions, size = population)) +
-  geom_point(alpha = 0.7, show.legend = FALSE) +
-  scale_size(range = c(2, 12)) +
-  scale_x_log10() +
-  facet_wrap(~ name) +
-  # Here comes the gganimate specific bits
-  labs(title = 'Year: {frame_time}', x = 'GDP per capita', y = 'life expectancy') +
-  transition_states(year) +
-  ease_aes('linear')
+summary(eviction_county)
+
+glimpse(eviction_county)
+
+eviction_county %>%
+  group_by(GEOID) 
 
 ```
 
+<<<<<<< Updated upstream
 ```{r map attempt}
 data("county_laea", package = "tidycensus")
 
 data("state_laea", package = "tidycensus")
 ```
+=======
+```{r gganimate eviction for state}
+
+# look at eviction rate over time per state -- create gganimate
+# this needs to have better formatting for final.
+
+eviction_state %>%
+  ggplot(aes(x = `eviction-rate`, y = name)) +
+  geom_point(aes(size = population, fill = `rent-burden`),
+             shape = 21) +
+  scale_x_log10(breaks = 2^(-1:7)*1000) +
+  scale_size(range = c(1, 20), guide = FALSE) +
+  labs(x = "Eviction Rate",
+       y = "State") +
+  transition_states(year, transition_length = 1,
+                    state_length = 1)+
+  ggtitle("Year showing {closest_state}",
+          subtitle = "Frame {frame} of {nframes}")+
+  theme_bw()
+```
+
+
+```{r set up spatial datasets}
+
+# get Census TIGER shapefiles for state
+state_us_geo <- tigris::states(class= "sf")
+
+
+# add spatial data to the state level eviction data
+eviction_by_state <- eviction_state %>%
+                      left_join(us_geo, c("GEOID" = "GEOID"))
+
+eviction_by_state
+
+# add spatial data to the county level eviction data
+eviction_by_county <- eviction_county %>%
+                      left_join(county_boundaries, c("GEOID" = "GEOID"))
+
+eviction_by_county
+```
+>>>>>>> Stashed changes
