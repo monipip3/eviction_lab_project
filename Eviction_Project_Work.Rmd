@@ -10,6 +10,7 @@ output: html_document
 # call in libraries to use
 
 suppressMessages(library(tidyverse))
+suppressMessages(library(DataExplorer))
 suppressMessages(library(modelr))
 suppressMessages(library(lubridate))
 suppressMessages(library(stringr))
@@ -19,6 +20,8 @@ suppressMessages(library(readxl))
 suppressMessages(library(gifski))
 suppressMessages(library(tidycensus))
 suppressMessages(library(rvest))
+suppressMessages(library(gridExtra))
+suppressMessages(library(corrplot))
 ```
 
 
@@ -48,7 +51,7 @@ end <- Sys.time()
 print(end-start)
 ```
 
-```{r rural urban}
+```{r A.S rural urban}
 
 # download and load urbal/rural classifications
 
@@ -89,7 +92,7 @@ urban_rural
 
 ```
 
-```{r Webscrape US Labor Stats}
+```{r MP Webscrape US Labor Stats}
 setwd("/Users/monicapuerto/Desktop/Github/eviction_lab_project")
 
 start <- Sys.time()
@@ -168,7 +171,7 @@ map(eviction_US_all, unique)
 
 ```
 
-```{r make county dataset}
+```{r AS make county dataset}
 #County Table joined with 2 additional variables : rural flag and unemployment rate
 eviction_county <- eviction_US_all %>%
   right_join(urban_rural, key = "GEOID") %>% 
@@ -178,7 +181,7 @@ eviction_county
 
 ```
 
-```{r make state dataset}
+```{r AS make state dataset}
 
 eviction_state <- eviction_US_all %>%
   filter(nchar(GEOID) == 2)
@@ -187,16 +190,63 @@ eviction_state
 
 ```
 
-```{r make place dataset}
 
-eviction_place <- eviction_US_all %>%
-  filter(nchar(GEOID) == 7)
-         
-eviction_place
-
+```{r MP Chunk Nulls Exploration}
+#We have 22.5% missing of eviction rate data in county and 11% missing in state. ALl 
+missing_state <- plot_missing(eviction_state)
+missing_eviction <- plot_missing(eviction_county)
+#colSums(is.na(eviction_state))/nrow(eviction_state)
+#colSums(is.na(eviction_county))/nrow(eviction_county)
+grid.arrange(missing_state,missing_eviction,ncol=2)
 ```
 
-```{r EDA state level data}
+```{r MP Correlation Matrix}
+
+#plot_correlation(na.omit(eviction_county), maxcat = 5L)
+na.omit(eviction_county) %>%
+select_if(is.numeric) %>%
+  as.matrix() %>% cor()  -> cor_matrix
+
+
+corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),20, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black")
+#corrplot(cor_matrix, type="upper", order="hclust", sig.level = 0.01, insig = "blank")
+```
+```{r MP Race Other %}
+#creating a new variable of nonwhite percentage
+eviction_county$pct_nonwhite <- 100 - eviction_county$`pct-white`
+
+na.omit(eviction_county) %>%
+select_if(is.numeric) %>%
+  as.matrix() %>% cor()  -> cor_matrix
+
+corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),20, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black")
+```
+
+
+```{r MP Distribution of Variables}
+eviction_county %>%
+  select(-year,-`eviction-filing-rate`,-`eviction-filings`, -evictions,-imputed, - `low-flag`,-subbed) %>% 
+  keep(is.numeric) %>%                     # Keep only numeric columns
+  gather() %>%                             # Convert to key-value pairs
+  ggplot(aes(value)) +                     # Plot the values
+    facet_wrap(~ key, scales = "free") +   # In separate panels
+    geom_density() 
+```
+
+
+```{r MP plotting Y against X}
+na.omit(eviction_county) %>%
+  select_if(is.numeric) %>%
+  gather(-`eviction-rate`,-population,-`rent-burden`, key = "var", value = "value") %>%
+  ggplot(aes(x = value, y = `eviction-rate`, color = population)) +
+    geom_point() +
+    facet_wrap(~ var, scales = "free") +
+    theme_bw()
+```
+
+
+
+```{r MP EDA state level data}
 
 # look at dataset
 
@@ -213,21 +263,7 @@ eviction_state %>%
 ```
 
 
-```{r EDA county level data}
 
-# look at data set
-eviction_county
-
-ncol(eviction_county)
-
-summary(eviction_county)
-
-glimpse(eviction_county)
-
-eviction_county %>%
-  group_by(GEOID) %
-
-```
 
 ```{r}
 
@@ -243,8 +279,3 @@ ggplot(eviction_state, aes(`eviction-rate`, evictions, size = population)) +
 
 ```
 
-```{r map attempt}
-data("county_laea", package = "tidycensus")
-
-data("state_laea", package = "tidycensus")
-```
