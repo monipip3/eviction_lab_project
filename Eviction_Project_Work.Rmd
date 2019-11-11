@@ -17,7 +17,7 @@ suppressMessages(library(stringr))
 suppressMessages(library(purrr))
 suppressMessages(library(gganimate))
 suppressMessages(library(readxl))
-suppressMessages(library(gifski))
+#suppressMessages(library(gifski))
 suppressMessages(library(tidycensus))
 suppressMessages(library(rvest))
 suppressMessages(library(tmap))
@@ -52,7 +52,8 @@ download.file(eviction_US_all, destfile = "./data/eviction_US_all.csv", mode = "
 # read the csv file into R and save into dataframe
 eviction_US_all <- read_csv("./data/eviction_US_all.csv")
 
-eviction_US_all
+#replacing "-" in column names 
+names(eviction_US_all) <- gsub(x = names(eviction_US_all), pattern = "-", replacement = "_")  
 ```
 
 ```{r import rural urban}
@@ -74,7 +75,6 @@ download.file(urban_rural, destfile = "./data/urban_rural.xlsx", mode = "wb")
 
 urban_rural <- read_excel(skip = 3, "./data/urban_rural.xlsx")
 
-names(urban_rural)
 
 # clean data set
 urban_rural <- urban_rural %>%
@@ -144,7 +144,7 @@ all_labor_data %>% reduce(full_join) -> all_labor_data
 # Data Cleaning
 ``` {r clean up data set}
 #remove some rows that have NA in Year and remove empty column next to year
-filter(all_labor_data,!is.na(year)) %>% select(-X__1) -> all_labor_data
+filter(all_labor_data,!is.na(year)) %>% select(-6) -> all_labor_data
  
  
 #creating a GEOID to join 
@@ -196,17 +196,23 @@ eviction_state
 
 ```
 
+```{r make region column}
+states_regions <- as.data.frame(cbind(state.name,levels(state.region)))#creating state and region table
+names(states_regions) <- c("states","region")
+  
+left_join(eviction_state, states_regions, by = c("name"="states")) -> eviction_state
+
+left_join(eviction_county, states_regions,by = c("parent_location"="states")) -> eviction_county
+```
+
+```{r make pct_non_white column for county}
+eviction_county$pct_nonwhite <- 100 - eviction_county$pct_white
+```
+
+
+
 # Data Exploration
 
-```{r data exploration, echo = false, eval = false}
-
-#look at col names
-colnames(eviction_US_all)
-
-#look at unique values for each variable
-map(eviction_US_all, unique)
-
-```
 
 ```{r Chunk Nulls Exploration}
 #We have 22.5% missing of eviction rate data in county and 11% missing in state. ALl 
@@ -216,6 +222,11 @@ missing_eviction <- plot_missing(eviction_county)
 #colSums(is.na(eviction_county))/nrow(eviction_county)
 grid.arrange(missing_state,missing_eviction,ncol=2)
 ```
+```{r Check if any states missing Evictions}
+eviction_state %>% group_by(GEOID,name) %>% summarise_at(c("eviction_filings", "evictions"), sum, na.rm = TRUE) %>% filter(evictions != 0)
+```
+
+
 
 ```{r Correlation Matrix}
 
@@ -225,18 +236,11 @@ select_if(is.numeric) %>%
   as.matrix() %>% cor()  -> cor_matrix
 
 
-corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),20, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black")
+corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),21, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black")
 #corrplot(cor_matrix, type="upper", order="hclust", sig.level = 0.01, insig = "blank")
 ```
 
-```{r Race Other %}
-#creating a new variable of nonwhite percentage
-eviction_county$pct_nonwhite <- 100 - eviction_county$`pct-white`
 
-na.omit(eviction_county) %>%
-select_if(is.numeric) %>%
-  as.matrix() %>% cor()  -> cor_matrix
-```
 
 ```{r data exploration, echo = false, eval = false}
 
@@ -256,7 +260,7 @@ summary(all_labor_data)
 eviction_county %>%
   group_by(GEOID) %>%
   summarise(
-    avg_rate = mean(`eviction-rate`, na.rm = TRUE)
+    avg_rate = mean(eviction_filing_rate, na.rm = TRUE)
   ) %>%
   top_n(100) %>%
   arrange(desc(avg_rate))
@@ -264,20 +268,18 @@ eviction_county %>%
 
 # histogram of eviction rates in county dataset
 eviction_county %>%
-  group_by(`eviction-rate`) %>%
+  group_by(eviction_filing_rate) %>%
   count() %>%
-  ggplot(aes(`eviction-rate`)) +
+  ggplot(aes(eviction_filing_rate)) +
   geom_histogram()
 
 ```
 
-```{r EDA state level data}
-corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),20, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black")
-```
+
 
 ```{r Distribution of Variables}
 eviction_county %>%
-  select(-year,-`eviction-filing-rate`,-`eviction-filings`, -evictions,-imputed, - `low-flag`,-subbed) %>% 
+  select(-year,-eviction_filings, -evictions,-imputed, -low_flag,-subbed) %>% 
   keep(is.numeric) %>%                     # Keep only numeric columns
   gather() %>%                             # Convert to key-value pairs
   ggplot(aes(value)) +                     # Plot the values
@@ -285,15 +287,7 @@ eviction_county %>%
     geom_density() 
 ```
 
-```{r plotting Y against X}
-na.omit(eviction_county) %>%
-  select_if(is.numeric) %>%
-  gather(-`eviction-rate`,-population,-`rent-burden`, key = "var", value = "value") %>%
-  ggplot(aes(x = value, y = `eviction-rate`, color = population)) +
-    geom_point() +
-    facet_wrap(~ var, scales = "free") +
-    theme_bw()
-```
+
 
 ```{r EDA state level data}
 
@@ -331,8 +325,8 @@ glimpse(eviction_county)
 # this needs to have better formatting for final.
 
 eviction_state %>%
-  ggplot(aes(x = `eviction-rate`, y = name)) +
-  geom_point(aes(size = population, fill = `rent-burden`),
+  ggplot(aes(x = eviction_filing_rate, y = name)) +
+  geom_point(aes(size = population, fill = rent_burden),
              shape = 21) +
   scale_x_log10(breaks = 2^(-1:7)*1000) +
   scale_size(range = c(1, 20), guide = FALSE) +
