@@ -306,3 +306,21 @@ ggplot(eviction_county, aes(x = `pct-white`, y = `eviction-rate`)) + geom_point(
 # 2. one big us map -- filter by county 
 # 3. show county over time (maybe stack with similar counties?)
 ```
+
+```{r AR remove_dash, eval=FALSE}
+# remove '-' from column names
+# for (i in names(eviction_county)) {
+#   if (grepl("-", i, fixed=TRUE)) {
+#     names(eviction_county) <- gsub("-", "_", i)
+#   }
+# }
+# 
+# # write a function to replace dashes with underscores in column names
+# dashes_to_unders <- function(df) {
+#   for (i in names(df)) {
+#     if (grepl("-", i, fixed=TRUE)) {
+#       names(df) <- gsub("-", "_", i)
+#     }
+#   }
+# }
+```
