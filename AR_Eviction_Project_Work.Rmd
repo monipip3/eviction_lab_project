@@ -347,73 +347,74 @@ eviction_state %>%
   theme_bw()
 ```
 
-```{r AR top_and_bottom_county_trends, eval=FALSE}
-# Top 10 Eviction Filing Rates -- determined by avg from 2000 to 2016
-# Bottom 10 Eviction Filing Rates -- determined by avg from 2000 to 2016
-# year vs filing rt
-# colored by rural flag 
-ev_ct <- eviction_county[!(eviction_county$eviction_filing_rate == NA)]
-ev_ct <- subset(eviction_county, eviction_filing_rate != NA)
+```{r AR top_bot_cty_fl_trends, eval=FALSE}
+# Top + Bottom 10 Eviction Filing Rates -- determined by avg from 2000 to 2016
+# ADD FUNCTIONALITY TO FACET BY REGION, TRY TO DO ALL THIS IN ONE PIPE
+# calculate top/bottom ten dynamically 
 
-evct <- eviction_county %>%
-  filter(!is.na(eviction_filing_rate))
-# confirm dropped rows
-plot_missing(evct)
+# Calculate mean filing rate and remove any with missing data over time, or any with an avg rate less than 0.1
+# Exclude states without data (02 (Alaska), 05 (Arkansas), 38 (North Dakota), 46 (South Dakota))
+ecplot <- eviction_county %>% 
+  group_by(GEOID) %>% 
+  mutate(avg_ev_fl_rate = mean(eviction_filing_rate)) %>% 
+  filter(!any(is.na(eviction_filing_rate))) %>%
+  filter(avg_ev_fl_rate >= 0.1) %>%
+  filter(State != "AK" & State != "AR" & State != "ND" & State != "SD") 
 
-top_tbl_avg_fl <- eviction_county %>%
-  group_by(GEOID) %>%
-  summarise(avg_fl_rate = mean(eviction_filing_rate, na.rm = TRUE)) %>%
-  arrange(desc(avg_fl_rate)) %>%
-  top_n(15)
+# Sort in descending order and grab the GEOIDs with the highest filing rates
+top_ec <- ecplot %>% 
+  group_by(GEOID) %>% 
+  arrange(desc(avg_ev_fl_rate))
+top_ec <- c(unique(top_ec$GEOID))[1:10]
 
-# 1. Why are there 0? Should we drop them? 
-# 2. Some of the values are from states without eviction rate data -- do we need to drop? 
-# 3. Should we drop outliers? 
-# 4. Those with gaps in data--should we drop those too? 
-bot_tbl_avg_fl <- eviction_county %>%
-  group_by(GEOID) %>%
-  summarise(avg_fl_rate = mean(eviction_filing_rate, na.rm = TRUE)) %>%
-  arrange(desc(avg_fl_rate)) %>%
-  filter(avg_fl_rate > 0.000000000) %>%
-  top_n(-10)
+# Sort in ascending order and grab the GEOIDs with the lowest filing rates
+bot_ec <- ecplot %>% 
+  group_by(GEOID) %>% 
+  arrange(avg_ev_fl_rate)
+bot_ec <- c(unique(bot_ec$GEOID))[1:10]
 
-top_10_avg_fl <- c(top_tbl_avg_fl$GEOID)
-bot_10_avg_fl <- c(bot_tbl_avg_fl$GEOID)
+# Create column for county + state
+ecplot$County <- paste(tools::toTitleCase(ecplot$name), 
+                       ecplot$State)
+# Set Wes Anderson palette -- why is it not working??
+pal <- wes_palette("Zissou1", 100, type = "continuous")
 
-top <- c(top_tbl_avg_fl$GEOID)
-bottom <- c(bot_tbl_avg_fl$GEOID)
-
-tbl_avg_fl <- eviction_county %>%
-  group_by(GEOID) %>%
-  summarise(avg_fl_rate = mean(eviction_filing_rate, na.rm = TRUE)) %>%
-  arrange(desc(avg_fl_rate)) 
-
-ec <- merge(eviction_county, tbl_avg_fl, by="GEOID")
-
-ec$County <- paste(ec$name, ec$State)
-
-# Change legend title
-# Filter for only counties without missing years 
-top_fl <- ec %>% 
-  filter(GEOID %in% top) %>% 
+# Plot the top filing counties over time
+top_fl <- ecplot %>% 
+  filter(GEOID %in% top_ec) %>% 
   ggplot() +
-  geom_line(aes(x = year, y = eviction_filing_rate, group = County, color = County)) +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = County, 
+                color = County)) +
   xlab("Year") +
   ylab("Eviction Filing Rates") +
-  ggtitle("Top Filing Counties Over Time") +
-  theme(plot.title = element_text(hjust = 0.5)) 
-bot_fl <- ec %>% 
-  filter(GEOID %in% bottom) %>% 
-  ggplot(aes(x = year, y = eviction_filing_rate, group = County, color = County)) +
-  geom_line() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Top Filing Counties* Over Time",
+       subtitle = "*Excludes counties with missing data",
+       caption = "Data from evictionlab.org") +
+  # scale_fill_manual(values = wes_palette("Zissou1"))
+  scale_fill_gradientn(colours = pal)
+
+# Plot the lowest filing counties over time 
+bot_fl <- ecplot %>% 
+  filter(GEOID %in% bot_ec) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = County, 
+                color = County)) +
   xlab("Year") +
   ylab("Eviction Filing Rates") +
-  ggtitle("Bottom Filing Counties Over Time") +
-  theme(plot.title = element_text(hjust = 0.5))
-
-# make another graph without missing data calculated in top 10 (aka top 10 of those with complete data)
-# look at populations of gapped counties
-
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing Counties* Over Time",
+       subtitle = "*Excludes counties with missing data",
+       caption = "Data from evictionlab.org") +
+  # scale_fill_manual(values = wes_palette("Zissou1"))
+  scale_fill_gradientn(colours = pal)
+# Display plots
 top_fl
 bot_fl
 
@@ -433,12 +434,4 @@ eviction_by_state <- eviction_state %>%
 # add spatial data to the county level eviction data
 eviction_by_county <- eviction_county %>%
                       left_join(county_boundaries, c("GEOID" = "GEOID"))
-```
-
-```{r AR stack_overflow_q}
-df <- data.frame(rating = c(rnorm(10), rnorm(10, mean=.8)), 
-                 year = factor(rep(c(2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009), each = 4)),
-                 reap = factor(rep(c("A", "B", "C", "D"), each = 10)))
-df[23:26,]$rating <- NA
-ggplot(df) + geom_line(aes(x = year, y = rating, color = reap))
 ```
