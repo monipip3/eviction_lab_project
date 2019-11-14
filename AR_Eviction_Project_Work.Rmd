@@ -354,9 +354,9 @@ eviction_state %>%
 
 # Calculate mean filing rate and remove any with missing data over time, or any with an avg rate less than 0.1
 # Exclude states without data (02 (Alaska), 05 (Arkansas), 38 (North Dakota), 46 (South Dakota))
-ecplot <- eviction_county %>% 
+ecplot <- eviction_county %>%
   group_by(GEOID) %>% 
-  mutate(avg_ev_fl_rate = mean(eviction_filing_rate)) %>% 
+  mutate(avg_ev_fl_rate = mean(eviction_filing_rate, na.rm=TRUE)) %>% 
   filter(!any(is.na(eviction_filing_rate))) %>%
   filter(avg_ev_fl_rate >= 0.1) %>%
   filter(State != "AK" & State != "AR" & State != "ND" & State != "SD") 
@@ -377,7 +377,7 @@ bot_ec <- c(unique(bot_ec$GEOID))[1:10]
 ecplot$County <- paste(tools::toTitleCase(ecplot$name), 
                        ecplot$State)
 # Set Wes Anderson palette -- why is it not working??
-pal <- wes_palette("Zissou1", 100, type = "continuous")
+# pal <- wes_palette("Zissou1", 100, type = "continuous")
 
 # Plot the top filing counties over time
 top_fl <- ecplot %>% 
@@ -393,9 +393,9 @@ top_fl <- ecplot %>%
   theme(plot.subtitle = element_text(hjust = 0.5)) +
   labs(title = "Top Filing Counties* Over Time",
        subtitle = "*Excludes counties with missing data",
-       caption = "Data from evictionlab.org") +
+       caption = "Data from evictionlab.org") #+
   # scale_fill_manual(values = wes_palette("Zissou1"))
-  scale_fill_gradientn(colours = pal)
+  # scale_fill_gradientn(colours = pal)
 
 # Plot the lowest filing counties over time 
 bot_fl <- ecplot %>% 
@@ -411,9 +411,9 @@ bot_fl <- ecplot %>%
   theme(plot.subtitle = element_text(hjust = 0.5)) +
   labs(title = "Lowest Filing Counties* Over Time",
        subtitle = "*Excludes counties with missing data",
-       caption = "Data from evictionlab.org") +
+       caption = "Data from evictionlab.org") # +
   # scale_fill_manual(values = wes_palette("Zissou1"))
-  scale_fill_gradientn(colours = pal)
+  # scale_fill_gradientn(colours = pal)
 # Display plots
 top_fl
 bot_fl
@@ -434,4 +434,65 @@ eviction_by_state <- eviction_state %>%
 # add spatial data to the county level eviction data
 eviction_by_county <- eviction_county %>%
                       left_join(county_boundaries, c("GEOID" = "GEOID"))
+```
+
+### knn/kmeans expl. for determining similar counties
+
+KNN: classification, supervised
+K means: clustering, unsupervised
+
+```{r knn_sim_cts}
+# pseudo code
+# use avg for ev_fl_rt 
+# make df with just avg (1 row == 1 county?)
+# NORMALIZE -- gotta put everything on the same scale -- **before** splitting
+# all predictors should (and will be) numeric 
+knn_ec <- eviction_county %>%
+  group_by(GEOID) %>%
+  mutate(avg_ev_fl_rate = mean(eviction_filing_rate, na.rm = TRUE)) %>%
+  mutate(avg_pop = mean(population))
+
+# quick test -- only use two params to cluster GEOID
+knn_ec_test <- subset(knn_ec, select = c("GEOID", "avg_ev_fl_rate", "avg_pop"))
+
+# dedupe and drop nulls
+knn_ec_test <- knn_ec_test %>%
+  distinct() %>%
+  drop_na()
+
+# normalize values
+fl_sc <- scale(knn_ec_test$avg_ev_fl_rate)
+pop_sc <- scale(knn_ec_test$avg_pop)
+knn_ec_test$avg_ev_fl_rate <- fl_sc
+knn_ec_test$avg_pop <- pop_sc
+
+# train-test split
+require(caTools)
+set.seed(123)
+sample <- sample.split(knn_ec_test,SplitRatio = 0.70)
+knn_train <- subset(knn_ec_test, sample == TRUE)
+knn_test <- subset(knn_ec_test, sample == FALSE)
+train_target <- knn_train$GEOID
+test_target <- knn_test$GEOID
+library(class)
+# run knn function
+pr <- knn(knn_train,knn_test,cl=train_target,k=13)
+
+# create confusion matrix
+tab <- table(pr,test_target)
+```
+
+```{r kmeans_sim_cts}
+km_ec <- eviction_county %>%
+  group_by(GEOID) %>%
+  mutate(avg_ev_fl_rate = mean(eviction_filing_rate, na.rm = TRUE)) %>%
+  mutate(avg_pop = mean(population))
+
+# quick test -- only use two params to cluster GEOID
+km_ec_test <- subset(km_ec, select = c("GEOID", "avg_ev_fl_rate", "avg_pop"))
+
+# dedupe and drop nulls
+km_ec_test <- km_ec_test %>%
+  distinct() %>%
+  drop_na()
 ```
