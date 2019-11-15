@@ -527,7 +527,7 @@ km_avg[ind] <- lapply(km_avg[ind], scale)
 
 # calculate and visualize distance 
 km_avg_distance <- get_dist(km_avg)
-fviz_dist(km_avg_distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+# fviz_dist(km_avg_distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
 
 # determine optimal clusters 
 # elbow 
@@ -536,10 +536,10 @@ fviz_nbclust(km_avg, kmeans, method = "wss")
 # silhouette
 fviz_nbclust(km_avg, kmeans, method = "silhouette")
 # gap statistic 
-set.seed(123)
-gap_stat <- clusGap(km_avg, FUN = kmeans, nstart = 25, K.max = 100, B = 50)
-print(gap_stat, method = "firstmax")
-fviz_gap_stat(gap_stat)
+# set.seed(123)
+# gap_stat <- clusGap(km_avg, FUN = kmeans, nstart = 25, K.max = 100, B = 50)
+# print(gap_stat, method = "firstmax")
+# fviz_gap_stat(gap_stat)
 
 # Results
 # Compute k-means clustering with k = 4
