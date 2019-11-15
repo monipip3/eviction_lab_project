@@ -485,7 +485,26 @@ km_test_final <- km_ec_test %>%
 ```
 
 ```{r kmeans_avg}
-km_avg <- eviction_county
+km_avg <- eviction_county %>%
+  group_by(GEOID) %>%
+  mutate(average_population = mean(population, na.rm = TRUE)) %>%
+  mutate(average_poverty_rate = mean(poverty_rate, na.rm = TRUE)) %>%
+  mutate(average_pct_renter_occupied = mean(pct_renter_occupied, na.rm = TRUE)) %>%
+  mutate(average_median_gross_rent = mean(median_gross_rent, na.rm = TRUE)) %>%
+  mutate(average_median_household_income = mean(median_household_income, na.rm = TRUE)) %>%
+  mutate(average_median_property_value = mean(median_property_value, na.rm = TRUE)) %>%
+  mutate(average_rent_burden = mean(rent_burden, na.rm = TRUE)) %>%
+  mutate(average_pct_white = mean(pct_white, na.rm = TRUE)) %>%
+  mutate(average_pct_af_am = mean(pct_af_am, na.rm = TRUE)) %>%
+  mutate(average_pct_hispanic = mean(pct_hispanic, na.rm = TRUE)) %>%
+  mutate(average_pct_am_ind = mean(pct_am_ind, na.rm = TRUE)) %>%
+  mutate(average_pct_asian = mean(pct_asian, na.rm = TRUE)) %>%
+  mutate(average_pct_nh_pi = mean(pct_nh_pi, na.rm = TRUE)) %>%
+  mutate(average_pct_multiple = mean(pct_multiple, na.rm = TRUE)) %>%
+  mutate(average_pct_other = mean(pct_other, na.rm = TRUE)) %>%
+  mutate(average_Percent_Rural = mean(Percent_Rural, na.rm = TRUE)) %>%
+  mutate(average_unemployment_rate = mean(unemployment_rate, na.rm = TRUE)) %>%
+  mutate(average_pct_nonwhite = mean(pct_nonwhite, na.rm = TRUE)) 
 ```
 
 ```{r kmeans_retain_year}
