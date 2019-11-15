@@ -392,7 +392,7 @@ We need to make one row for each county. There are two ways to do this:
 * `group_by(GEOID)` and make each column the average of all the years 
   - this ignores how counties have changed over time
   - doesn't change the amount of variables 
-* `gather_by(GEOID)` and give each column its own year (i.e. 2000 population, 2001 population, etc.)
+* `spread_by(GEOID)` and give each column its own year (i.e. 2000 population, 2001 population, etc.)
   - results in many variables
   - kmeans can handle many, but may be slow
 
@@ -505,8 +505,58 @@ km_avg <- eviction_county %>%
   mutate(average_Percent_Rural = mean(Percent_Rural, na.rm = TRUE)) %>%
   mutate(average_unemployment_rate = mean(unemployment_rate, na.rm = TRUE)) %>%
   mutate(average_pct_nonwhite = mean(pct_nonwhite, na.rm = TRUE)) 
+
+km_avg <- subset(km_avg, select = c("GEOID", "average_population", "average_poverty_rate", "average_pct_renter_occupied", "average_median_gross_rent", "average_median_household_income", "average_median_property_value", "average_rent_burden", "average_pct_white", "average_pct_af_am", "average_pct_hispanic", "average_pct_am_ind", "average_pct_asian", "average_pct_nh_pi", "average_pct_multiple", "average_pct_other", "average_Percent_Rural", "average_unemployment_rate", "average_pct_nonwhite" ))
+
+# average_unemployment_rate is missing 0.08% while everything else is 0.01%
+# plot_missing(km_avg)
+
+# dedupe and drop nulls
+km_avg <- km_avg %>%
+  distinct() %>% # reduces to 3147
+  drop_na() # reduces to 3138
+
+# set GEOID (chr.) to index
+km_avg <- km_avg %>%
+  column_to_rownames(., var = "GEOID")
+
+# scale numerical data
+library(MASS)
+ind <- sapply(km_avg, is.numeric)
+km_avg[ind] <- lapply(km_avg[ind], scale)
+
+# calculate and visualize distance 
+km_avg_distance <- get_dist(km_avg)
+fviz_dist(km_avg_distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+# determine optimal clusters 
+# elbow 
+set.seed(123)
+fviz_nbclust(km_avg, kmeans, method = "wss")
+# silhouette
+fviz_nbclust(km_avg, kmeans, method = "silhouette")
+# gap statistic 
+set.seed(123)
+gap_stat <- clusGap(km_avg, FUN = kmeans, nstart = 25, K.max = 100, B = 50)
+print(gap_stat, method = "firstmax")
+fviz_gap_stat(gap_stat)
+
+# Results
+# Compute k-means clustering with k = 4
+set.seed(123)
+final <- kmeans(km_avg, 4, nstart = 25)
+print(final)
+fviz_cluster(final, data = km_avg)
+
+# Extract clusters and add to data frame -- HOW TO NOT REMOVE GEOID?? TF R? 
+km_avg_final <- km_avg %>%
+  mutate(Cluster = final$cluster)
+
+# Plot eviction filing rates, faceted by cluster
+# Join evic. rates with data frame and re-add GEOID as column (don't forget to remove nulls)
 ```
 
 ```{r kmeans_retain_year}
-km_gather <- eviction_county
+km_spread <- eviction_county
+# https://uc-r.github.io/tidyr
 ```
