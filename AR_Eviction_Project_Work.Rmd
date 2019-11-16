@@ -29,6 +29,8 @@ suppressMessages(library(corrplot))
 suppressMessages(library(dplyr))
 suppressMessages(library(factoextra))
 suppressMessages(library(cluster))
+suppressMessages(library(RColorBrewer))
+suppressMessages(library(MASS))
 
 # 11/8: Added packages "tmap", "spData", "tigris"
 # install.packages("tmap")
@@ -38,6 +40,7 @@ suppressMessages(library(cluster))
 # 11/14: Added package "factoextra"
 # install.packages("factoextra")
 # install.packages("cluster")
+# install.packages("RColorBrewer")
 ```
 # Data Downloads
 ```{r download data - eviction dataset}
@@ -94,7 +97,7 @@ names(urban_rural)
 # select only needed fields
 urban_rural <-urban_rural %>%
   mutate(rural_flag = ifelse(round(Percent_Rural, 3) > 50, 1, 0)) %>%
-  select(GEOID, State, Percent_Rural, rural_flag) 
+  dplyr::select(GEOID, State, Percent_Rural, rural_flag) 
 
 # view cleaned up dataset
 head(urban_rural, 10)
@@ -151,7 +154,7 @@ all_labor_data %>% reduce(full_join) -> all_labor_data
 # Data Cleaning
 ``` {r clean up data set}
 #remove some rows that have NA in Year and remove empty column next to year
-filter(all_labor_data,!is.na(year)) %>% select(-6) -> all_labor_data
+filter(all_labor_data,!is.na(year)) %>% dplyr::select(-6) -> all_labor_data
  
  
 #creating a GEOID to join 
@@ -187,7 +190,7 @@ county_boundaries
 
 eviction_county <- eviction_US_all %>%
   right_join(urban_rural, key = "GEOID") %>% 
-  left_join(select(all_labor_data,GEOID,year,unemployment_rate), by =c("GEOID" = "GEOID", "year"="year"))
+  left_join(dplyr::select(all_labor_data,GEOID,year,unemployment_rate), by =c("GEOID" = "GEOID", "year"="year"))
          
 head(eviction_county, 10)
 ```
@@ -268,7 +271,7 @@ eviction_county %>%
 
 ```{r Distribution of Variables}
 eviction_county %>%
-  select(-year,-eviction_filings, -evictions,-imputed, -low_flag,-subbed) %>% 
+  dplyr::select(-year,-eviction_filings, -evictions,-imputed, -low_flag,-subbed) %>% 
   keep(is.numeric) %>%                     # Keep only numeric columns
   gather() %>%                             # Convert to key-value pairs
   ggplot(aes(value)) +                     # Plot the values
@@ -332,7 +335,7 @@ eviction_by_county <- eviction_county %>%
 eviction_by_county
 ```
 
-```{r top_bot_cty_fl_trends, eval=FALSE}
+```{r top_bot_cty_fl_trends}
 # Top + Bottom 10 Eviction Filing Rates -- determined by avg from 2000 to 2016
 # calculate top/bottom ten dynamically 
 
@@ -377,9 +380,8 @@ top_fl <- ecplot %>%
   theme(plot.subtitle = element_text(hjust = 0.5)) +
   labs(title = "Top Filing Counties* Over Time",
        subtitle = "*Excludes counties with missing data",
-       caption = "Data from evictionlab.org") #+
-  # scale_fill_manual(values = wes_palette("Zissou1"))
-  # scale_fill_gradientn(colours = pal)
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral")
 
 # Plot the lowest filing counties over time 
 bot_fl <- ecplot %>% 
@@ -395,14 +397,14 @@ bot_fl <- ecplot %>%
   theme(plot.subtitle = element_text(hjust = 0.5)) +
   labs(title = "Lowest Filing Counties* Over Time",
        subtitle = "*Excludes counties with missing data",
-       caption = "Data from evictionlab.org") # +
-  # scale_fill_manual(values = wes_palette("Zissou1"))
-  # scale_fill_gradientn(colours = pal)
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral")
 # Display plots
 top_fl
 bot_fl
 
 # Also facet by region -- top 10 counties 
+
 ```
 
 ## K means clustering for determining similar counties
@@ -441,6 +443,27 @@ How to determine optimal clusters:
 2. silhouette method
 3. gap statistic
 4. Use the `Nbclust` package which provides 30 indices for determining the relevant number of clusters and proposes to users the best clustering scheme from the different results obtained by varying all combinations of number of clusters, distance measures, and clustering methods.
+
+```{r kmeans_shiny}
+# add filter for year for kmeans for shiny app 
+# focus on base demos 
+
+# pseudo code for app
+km <- eviction_county %>%
+  dplyr::select(c(GEOID, population)) %>%
+  filter(year == "2016") %>%
+  distinct() %>%
+  drop_na() %>%
+  column_to_rownames(., var = "GEOID")
+ind <- sapply(km, is.numeric)
+km[ind] <- lapply(km[ind], scale)
+set.seed(123)
+km3 <- kmeans(km, 3, nstart = 25)
+km$cluster <- km3$cluster
+km$GEOID <- c(row.names(km))
+geo_clust <- subset(km_avg, select=c("GEOID", "cluster"))
+```
+
 
 ```{r kmeans_avg}
 km_avg <- eviction_county %>%
@@ -497,7 +520,7 @@ fviz_nbclust(km_avg, kmeans, method = "silhouette") # 3
 # Compute k-means clustering
 set.seed(123)
 km3 <- kmeans(km_avg, 3, nstart = 25)
-print(km3)
+# print(km3)
 fviz_cluster(km3, data = km_avg)
 
 # Extract clusters and add to data frame
@@ -519,12 +542,17 @@ evr <- evr %>%
   distinct() %>%
   drop_na()
 merge(km_avg, evr, by = "GEOID") %>%
-  ggplot() + geom_bar(aes(x = GEOID, y = avg_fl), stat = 'identity') + facet_grid(. ~ cluster)
+  ggplot() + 
+  geom_bar(aes(x = GEOID, y = avg_fl), stat = 'identity') + 
+  facet_grid(. ~ cluster) 
 ```
 
-```{r kmeans_retain_year}
-# make a list of columns to keep, drop those we won't
-tot_cols <- c(names(eviction_county))
-tot_cols <- tot_cols[-c(1, 2, 3, 4, 7, 21, 22, 23, 24, 25, 26, 27, 28, 30, 32)]
-km_tot <- pivot_wider(eviction_county, names_from=year, values_from=c(population, median_gross_rent), names_sep="_") # not working
+```{r kmeans_avg_cluster_eda}
+# top 20 overall counties and then color by region + top 5/10 faceted by region -- metric is avg eviction filing rate
+# eda for each cluster of all the averages -- i.e. pct white, population/pop. growth, rent burden, income, etc. 
+# write out code for the shiny app to incorporate filters and crap into kmeans
+# write out code to select similar counties from clusters based on selected county for shiny app 
+# rewrite my line graph code to be more dynamic (i.e. have the ability to filter down to state-level top and bottom filing rates)
+# start bones of presentation if A) someone already hasn't or B) someone else doesn't have their heart set on it
+  # include gganimate in presentation (screen record)
 ```
