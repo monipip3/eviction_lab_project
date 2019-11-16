@@ -5,8 +5,6 @@ date: "10/27/2019"
 output: html_document
 ---
 
-# UPDATE CODE
-
 ```{r setup, include=FALSE}
 
 # call in libraries to use
@@ -29,12 +27,17 @@ suppressMessages(library(sf))
 suppressMessages(library(gridExtra))
 suppressMessages(library(corrplot))
 suppressMessages(library(dplyr))
+suppressMessages(library(factoextra))
+suppressMessages(library(cluster))
 
 # 11/8: Added packages "tmap", "spData", "tigris"
 # install.packages("tmap")
 # install.packages("spData")
 # install.packages("tigris")
 
+# 11/14: Added package "factoextra"
+# install.packages("factoextra")
+# install.packages("cluster")
 ```
 # Data Downloads
 ```{r download data - eviction dataset}
@@ -196,37 +199,6 @@ eviction_state <- eviction_US_all %>%
 head(eviction_state, 10)
 ```
 
-# Data Exploration
-
-```{r data exploration, echo = false, eval = false}
-#look at col names
-colnames(eviction_US_all)
-
-#look at unique values for each variable
-# map(eviction_US_all, unique)
-```
-
-```{r Chunk Nulls Exploration}
-#We have 22.5% missing of eviction rate data in county and 11% missing in state. ALl 
-missing_state <- plot_missing(eviction_state)
-missing_eviction <- plot_missing(eviction_county)
-#colSums(is.na(eviction_state))/nrow(eviction_state)
-#colSums(is.na(eviction_county))/nrow(eviction_county)
-grid.arrange(missing_state,missing_eviction,ncol=2)
-```
-
-```{r Correlation Matrix}
-
-#plot_correlation(na.omit(eviction_county), maxcat = 5L)
-na.omit(eviction_county) %>%
-select_if(is.numeric) %>%
-  as.matrix() %>% cor()  -> cor_matrix
-
-
-corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),20, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black")
-#corrplot(cor_matrix, type="upper", order="hclust", sig.level = 0.01, insig = "blank")
-```
-
 ```{r make region column}
 states_regions <- as.data.frame(cbind(state.name,levels(state.region)))#creating state and region table
 names(states_regions) <- c("states","region")
@@ -236,19 +208,40 @@ left_join(eviction_state, states_regions, by = c("name"="states")) -> eviction_s
 left_join(eviction_county, states_regions,by = c("parent_location"="states")) -> eviction_county
 ```
 
-```{r Race Other %}
-#creating a new variable of nonwhite percentage
+```{r make pct_non_white column for county}
 eviction_county$pct_nonwhite <- 100 - eviction_county$pct_white
+```
 
+# Data Exploration
+
+```{r Chunk Nulls Exploration}
+#We have 22.5% missing of eviction rate data in county and 11% missing in state. ALl 
+missing_state <- plot_missing(eviction_state)
+missing_eviction <- plot_missing(eviction_county)
+#colSums(is.na(eviction_state))/nrow(eviction_state)
+#colSums(is.na(eviction_county))/nrow(eviction_county)
+grid.arrange(missing_state,missing_eviction,ncol=2)
+```
+```{r Check if any states missing Evictions}
+eviction_state %>% group_by(GEOID,name) %>% summarise_at(c("eviction_filings", "evictions"), sum, na.rm = TRUE) %>% filter(evictions != 0)
+```
+
+
+
+```{r Correlation Matrix}
+#plot_correlation(na.omit(eviction_county), maxcat = 5L)
 na.omit(eviction_county) %>%
 select_if(is.numeric) %>%
   as.matrix() %>% cor()  -> cor_matrix
+corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),21, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black")
+#corrplot(cor_matrix, type="upper", order="hclust", sig.level = 0.01, insig = "blank")
 ```
+
+
 
 ```{r data exploration, echo = false, eval = false}
 #look at col names
 colnames(eviction_US_all)
-
 #look at summary of data
 summary(eviction_US_all)
 summary(all_labor_data)
@@ -259,27 +252,23 @@ summary(all_labor_data)
 eviction_county %>%
   group_by(GEOID) %>%
   summarise(
-    avg_rate = mean(eviction_rate, na.rm = TRUE)
+    avg_rate = mean(eviction_filing_rate, na.rm = TRUE)
   ) %>%
   top_n(100) %>%
   arrange(desc(avg_rate))
-
 # histogram of eviction rates in county dataset
 eviction_county %>%
-  group_by(eviction_rate) %>%
+  group_by(eviction_filing_rate) %>%
   count() %>%
-  ggplot(aes(eviction_rate)) +
+  ggplot(aes(eviction_filing_rate)) +
   geom_histogram()
-
 ```
 
-```{r EDA state level data}
-corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),20, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black")
-```
+
 
 ```{r Distribution of Variables}
 eviction_county %>%
-  select(-year,-eviction_filing_rate,-eviction_filings, -evictions,-imputed, - low_flag,-subbed) %>% 
+  select(-year,-eviction_filings, -evictions,-imputed, -low_flag,-subbed) %>% 
   keep(is.numeric) %>%                     # Keep only numeric columns
   gather() %>%                             # Convert to key-value pairs
   ggplot(aes(value)) +                     # Plot the values
@@ -287,24 +276,12 @@ eviction_county %>%
     geom_density() 
 ```
 
-```{r plotting Y against X}
-na.omit(eviction_county) %>%
-  select_if(is.numeric) %>%
-  gather(-eviction_rate,-population,-rent_burden, key = "var", value = "value") %>%
-  ggplot(aes(x = value, y = eviction_rate, color = population)) +
-    geom_point() +
-    facet_wrap(~ var, scales = "free") +
-    theme_bw()
-```
+
 
 ```{r EDA state level data}
-
 # look at dataset
-
 names(eviction_state)
-
 summary(eviction_state)
-
 # look at 2016 
 eviction_state %>%
   filter(year == 2016) %>%
@@ -312,28 +289,22 @@ eviction_state %>%
   geom_bar(stat = 'identity') +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   coord_flip()
-
 ```
 
 ```{r EDA county level data}
-
 # look at data set
 eviction_county %>%
-  group_by(GEOID)
-
+  group_by(GEOID) 
 ncol(eviction_county)
 summary(eviction_county)
 glimpse(eviction_county)
-
 ```
 
 ```{r gganimate eviction for state}
-
 # look at eviction rate over time per state -- create gganimate
 # this needs to have better formatting for final.
-
 eviction_state %>%
-  ggplot(aes(x = eviction_rate, y = name)) +
+  ggplot(aes(x = eviction_filing_rate, y = name)) +
   geom_point(aes(size = population, fill = rent_burden),
              shape = 21) +
   scale_x_log10(breaks = 2^(-1:7)*1000) +
@@ -347,9 +318,22 @@ eviction_state %>%
   theme_bw()
 ```
 
-```{r AR top_bot_cty_fl_trends, eval=FALSE}
+# Set up Spatial Datasets for Mapping
+```{r set up spatial datasets, eval = FALSE}
+# get Census TIGER shapefiles for state
+state_us_geo <- tigris::states(class= "sf")
+# add spatial data to the state level eviction data
+eviction_by_state <- eviction_state %>%
+                       left_join(state_us_geo, c("GEOID" = "GEOID"))
+eviction_by_state
+# add spatial data to the county level eviction data
+eviction_by_county <- eviction_county %>%
+                      left_join(county_boundaries, c("GEOID" = "GEOID"))
+eviction_by_county
+```
+
+```{r top_bot_cty_fl_trends, eval=FALSE}
 # Top + Bottom 10 Eviction Filing Rates -- determined by avg from 2000 to 2016
-# ADD FUNCTIONALITY TO FACET BY REGION, TRY TO DO ALL THIS IN ONE PIPE
 # calculate top/bottom ten dynamically 
 
 # Calculate mean filing rate and remove any with missing data over time, or any with an avg rate less than 0.1
@@ -421,78 +405,126 @@ bot_fl
 # Also facet by region -- top 10 counties 
 ```
 
-# Set up Spatial Datasets for Mapping
-```{r set up spatial datasets}
+## K means clustering for determining similar counties
 
-# get Census TIGER shapefiles for state
-state_us_geo <- tigris::states(class= "sf")
+Why k-means?
 
-# add spatial data to the state level eviction data
-eviction_by_state <- eviction_state %>%
-                      left_join(state_us_geo, c("GEOID" = "GEOID"))
+- We're not trying to predict anything 
+- We don't have an existing way to verify if counties are truly/correctly similar to one another
 
-# add spatial data to the county level eviction data
-eviction_by_county <- eviction_county %>%
-                      left_join(county_boundaries, c("GEOID" = "GEOID"))
-```
+To perform a cluster analysis in R, generally, the data should be prepared as follows:
 
-### knn/kmeans expl. for determining similar counties
+- Rows are observations (individuals) and columns are variables
+- Any missing value in the data must be removed or estimated.
+  - Thinking we exclude counties without any data 
+- The data must be standardized (i.e., scaled) to make variables comparable
 
-KNN: classification, supervised
-K means: clustering, unsupervised
+We need to make one row for each county. There are two ways to do this: 
 
-```{r knn_sim_cts}
-# pseudo code
-# use avg for ev_fl_rt 
-# make df with just avg (1 row == 1 county?)
-# NORMALIZE -- gotta put everything on the same scale -- **before** splitting
-# all predictors should (and will be) numeric 
-knn_ec <- eviction_county %>%
+* `group_by(GEOID)` and make each column the average of all the years 
+  - this ignores how counties have changed over time
+  - doesn't change the amount of variables 
+* `spread_by(GEOID)` and give each column its own year (i.e. 2000 population, 2001 population, etc.)
+  - results in many variables
+  - kmeans can handle many, but may be extremely slow
+
+We need to consider whether we want each year to have equal importance. 
+
+Some weaknesses to keep in mind: 
+
+- Requires us to pre-specify the number of clusters
+- Sensitive to outliers
+
+How to determine optimal clusters: 
+
+1. elbow method
+2. silhouette method
+3. gap statistic
+4. Use the `Nbclust` package which provides 30 indices for determining the relevant number of clusters and proposes to users the best clustering scheme from the different results obtained by varying all combinations of number of clusters, distance measures, and clustering methods.
+
+```{r kmeans_avg}
+km_avg <- eviction_county %>%
   group_by(GEOID) %>%
-  mutate(avg_ev_fl_rate = mean(eviction_filing_rate, na.rm = TRUE)) %>%
-  mutate(avg_pop = mean(population))
+  mutate(average_population = mean(population, na.rm = TRUE)) %>%
+  mutate(average_poverty_rate = mean(poverty_rate, na.rm = TRUE)) %>%
+  mutate(average_pct_renter_occupied = mean(pct_renter_occupied, na.rm = TRUE)) %>%
+  mutate(average_median_gross_rent = mean(median_gross_rent, na.rm = TRUE)) %>%
+  mutate(average_median_household_income = mean(median_household_income, na.rm = TRUE)) %>%
+  mutate(average_median_property_value = mean(median_property_value, na.rm = TRUE)) %>%
+  mutate(average_rent_burden = mean(rent_burden, na.rm = TRUE)) %>%
+  mutate(average_pct_white = mean(pct_white, na.rm = TRUE)) %>%
+  mutate(average_pct_af_am = mean(pct_af_am, na.rm = TRUE)) %>%
+  mutate(average_pct_hispanic = mean(pct_hispanic, na.rm = TRUE)) %>%
+  mutate(average_pct_am_ind = mean(pct_am_ind, na.rm = TRUE)) %>%
+  mutate(average_pct_asian = mean(pct_asian, na.rm = TRUE)) %>%
+  mutate(average_pct_nh_pi = mean(pct_nh_pi, na.rm = TRUE)) %>%
+  mutate(average_pct_multiple = mean(pct_multiple, na.rm = TRUE)) %>%
+  mutate(average_pct_other = mean(pct_other, na.rm = TRUE)) %>%
+  mutate(average_Percent_Rural = mean(Percent_Rural, na.rm = TRUE)) %>%
+  mutate(average_unemployment_rate = mean(unemployment_rate, na.rm = TRUE)) %>%
+  mutate(average_pct_nonwhite = mean(pct_nonwhite, na.rm = TRUE)) 
 
-# quick test -- only use two params to cluster GEOID
-knn_ec_test <- subset(knn_ec, select = c("GEOID", "avg_ev_fl_rate", "avg_pop"))
+km_avg <- subset(km_avg, select = c("GEOID", "average_population", "average_poverty_rate", "average_pct_renter_occupied", "average_median_gross_rent", "average_median_household_income", "average_median_property_value", "average_rent_burden", "average_pct_white", "average_pct_af_am", "average_pct_hispanic", "average_pct_am_ind", "average_pct_asian", "average_pct_nh_pi", "average_pct_multiple", "average_pct_other", "average_Percent_Rural", "average_unemployment_rate", "average_pct_nonwhite" ))
 
 # dedupe and drop nulls
-knn_ec_test <- knn_ec_test %>%
-  distinct() %>%
-  drop_na()
+km_avg <- km_avg %>%
+  distinct() %>% # reduces to 3147
+  drop_na() # reduces to 3138
 
-# normalize values
-fl_sc <- scale(knn_ec_test$avg_ev_fl_rate)
-pop_sc <- scale(knn_ec_test$avg_pop)
-knn_ec_test$avg_ev_fl_rate <- fl_sc
-knn_ec_test$avg_pop <- pop_sc
+# since kmeans is sensitive to outliers, drop outliers from model data 
 
-# train-test split
-require(caTools)
+# set GEOID (chr.) to index
+km_avg <- km_avg %>%
+  column_to_rownames(., var = "GEOID")
+
+# scale numerical data
+library(MASS)
+ind <- sapply(km_avg, is.numeric)
+km_avg[ind] <- lapply(km_avg[ind], scale)
+
+# calculate and visualize distance 
+# km_avg_distance <- get_dist(km_avg)
+# fviz_dist(km_avg_distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+# determine optimal clusters 
+# elbow 
 set.seed(123)
-sample <- sample.split(knn_ec_test,SplitRatio = 0.70)
-knn_train <- subset(knn_ec_test, sample == TRUE)
-knn_test <- subset(knn_ec_test, sample == FALSE)
-train_target <- knn_train$GEOID
-test_target <- knn_test$GEOID
-library(class)
-# run knn function
-pr <- knn(knn_train,knn_test,cl=train_target,k=13)
+fviz_nbclust(km_avg, kmeans, method = "wss") # 3
+# silhouette
+fviz_nbclust(km_avg, kmeans, method = "silhouette") # 3
 
-# create confusion matrix
-tab <- table(pr,test_target)
-```
+# Results
+# Compute k-means clustering
+set.seed(123)
+km3 <- kmeans(km_avg, 3, nstart = 25)
+print(km3)
+fviz_cluster(km3, data = km_avg)
 
-```{r kmeans_sim_cts}
-km_ec <- eviction_county %>%
+# Extract clusters and add to data frame
+km_avg$cluster <- km3$cluster
+# reintroduce GEOID as column
+km_avg$GEOID <- c(row.names(km_avg))
+# create separate df with just GEOID and cluster
+geo_clust <- subset(km_avg, select=c("GEOID", "cluster"))
+
+# plot cluster amounts
+ggplot(data=km_avg, aes(x = cluster)) + geom_bar(stat="bin")
+ 
+# Plot eviction filing rates, faceted by cluster
+evr <- eviction_county %>%
   group_by(GEOID) %>%
-  mutate(avg_ev_fl_rate = mean(eviction_filing_rate, na.rm = TRUE)) %>%
-  mutate(avg_pop = mean(population))
-
-# quick test -- only use two params to cluster GEOID
-km_ec_test <- subset(km_ec, select = c("GEOID", "avg_ev_fl_rate", "avg_pop"))
-
-# dedupe and drop nulls
-km_ec_test <- km_ec_test %>%
+  mutate(avg_fl = mean(eviction_filing_rate, na.rm=TRUE))
+evr <- subset(evr, select = c("GEOID", "avg_fl"))
+evr <- evr %>%
   distinct() %>%
   drop_na()
+merge(km_avg, evr, by = "GEOID") %>%
+  ggplot() + geom_bar(aes(x = GEOID, y = avg_fl), stat = 'identity') + facet_grid(. ~ cluster)
+```
+
+```{r kmeans_retain_year}
+# make a list of columns to keep, drop those we won't
+tot_cols <- c(names(eviction_county))
+tot_cols <- tot_cols[-c(1, 2, 3, 4, 7, 21, 22, 23, 24, 25, 26, 27, 28, 30, 32)]
+km_tot <- pivot_wider(eviction_county, names_from=year, values_from=c(population, median_gross_rent), names_sep="_") # not working
 ```
