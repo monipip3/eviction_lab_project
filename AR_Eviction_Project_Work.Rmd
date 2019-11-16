@@ -450,17 +450,21 @@ How to determine optimal clusters:
 
 # pseudo code for app
 km <- eviction_county %>%
-  dplyr::select(c(GEOID, population)) %>%
-  filter(year == "2016") %>%
+  filter(year == 2016) %>%
+  dplyr::select(c(GEOID, population, poverty_rate, pct_renter_occupied, median_gross_rent, median_household_income, median_property_value, rent_burden, pct_white, pct_af_am, pct_hispanic, pct_am_ind, pct_asian, pct_nh_pi, pct_multiple, pct_other, Percent_Rural, unemployment_rate, pct_nonwhite)) %>%
   distinct() %>%
   drop_na() %>%
   column_to_rownames(., var = "GEOID")
-ind <- sapply(km, is.numeric)
-km[ind] <- lapply(km[ind], scale)
+km_sc <- km
+ind <- sapply(km_sc, is.numeric)
+km_sc[ind] <- lapply(km_sc[ind], scale)
 set.seed(123)
-km3 <- kmeans(km, 3, nstart = 25)
+km3 <- kmeans(km_sc, 3, nstart = 25)
 km$cluster <- km3$cluster
 km$GEOID <- c(row.names(km))
+rownames(km) <- NULL
+km <- km %>%
+  dplyr::select(GEOID, everything())
 geo_clust <- subset(km_avg, select=c("GEOID", "cluster"))
 ```
 
