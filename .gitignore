@@ -7,4 +7,4 @@
 
 #ignore R Data
 
-.RData
+*.RData
