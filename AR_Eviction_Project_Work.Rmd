@@ -881,8 +881,51 @@ fviz_nbclust(km_sc, kmeans, method = "silhouette") # 3
 # Compute k-means clustering
 # play around with methods and k amounts 
 set.seed(123)
-km3 <- kmeans(km_sc, 3, nstart = 25)
-fviz_cluster(km3, data = km_sc)
+# Hartigan-Wong
+hw_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Hartigan-Wong")
+hw_km4 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Hartigan-Wong")
+hw_km5 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Hartigan-Wong")
+hw_km6 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Hartigan-Wong")
+hw_km7 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Hartigan-Wong")
+fviz_cluster(hw_km3, data = km_sc)
+fviz_cluster(hw_km4, data = km_sc)
+fviz_cluster(hw_km5, data = km_sc)
+fviz_cluster(hw_km6, data = km_sc)
+fviz_cluster(hw_km7, data = km_sc)
+# Lloyd
+ll_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Lloyd")
+ll_km4 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Lloyd")
+ll_km5 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Lloyd")
+ll_km6 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Lloyd")
+ll_km7 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Lloyd")
+fviz_cluster(ll_km3, data = km_sc)
+fviz_cluster(ll_km4, data = km_sc)
+fviz_cluster(ll_km5, data = km_sc)
+fviz_cluster(ll_km6, data = km_sc)
+fviz_cluster(ll_km7, data = km_sc)
+# Forgy
+fg_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Forgy")
+fg_km4 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Forgy")
+fg_km5 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Forgy")
+fg_km6 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Forgy")
+fg_km7 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Forgy")
+fviz_cluster(fg_km3, data = km_sc)
+fviz_cluster(fg_km4, data = km_sc)
+fviz_cluster(fg_km5, data = km_sc)
+fviz_cluster(fg_km6, data = km_sc)
+fviz_cluster(fg_km7, data = km_sc)
+# MacQueen
+mq_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "MacQueen")
+mq_km4 <- kmeans(km_sc, 3, nstart = 25 , algorithm = "MacQueen")
+mq_km5 <- kmeans(km_sc, 3, nstart = 25, algorithm = "MacQueen")
+mq_km6 <- kmeans(km_sc, 3, nstart = 25, algorithm = "MacQueen")
+mq_km7 <- kmeans(km_sc, 3, nstart = 25, algorithm = "MacQueen")
+fviz_cluster(mq_km3, data = km_sc)
+fviz_cluster(mq_km4, data = km_sc)
+fviz_cluster(mq_km5, data = km_sc)
+fviz_cluster(mq_km6, data = km_sc)
+fviz_cluster(mq_km7, data = km_sc)
+ 
 
 # Extract clusters and add to data frame
 km$cluster <- km3$cluster
