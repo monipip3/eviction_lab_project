@@ -341,70 +341,13 @@ eviction_by_county
 eviction_county_2010 <- eviction_county %>%
   filter(year >= 2010) %>%
   mutate(rural_flag = as.character(rural_flag))
+
+# load color palette
+color_pal <- c(brewer.pal(11, "Spectral"))
 ```
 
-```{r top_bot_cty_fl_trends}
-# Top + Bottom 10 Eviction Filing Rates -- determined by avg from 2000 to 2016
-
-# Calculate mean filing rate and remove any with an avg rate less than 0.01
-ecplot <- eviction_county_2010 %>%
-  group_by(GEOID) %>% 
-  mutate(avg_ev_fl_rate = mean(eviction_filing_rate, na.rm=TRUE)) %>% 
-  filter(avg_ev_fl_rate >= 0.01) %>%
-  filter(State != "AK" & State != "HI") 
-
-# Sort in descending order and grab the GEOIDs with the highest filing rates
-top_ec <- ecplot %>% 
-  group_by(GEOID) %>% 
-  arrange(desc(avg_ev_fl_rate))
-top_ec <- c(unique(top_ec$GEOID))[1:10]
-
-# Sort in ascending order and grab the GEOIDs with the lowest filing rates
-bot_ec <- ecplot %>% 
-  group_by(GEOID) %>% 
-  arrange(avg_ev_fl_rate)
-bot_ec <- c(unique(bot_ec$GEOID))[1:10]
-
-ecplot$County <- str_c(tools::toTitleCase(ecplot$name), ecplot$State, sep = ", ")
-
-# Plot the top filing counties over time
-ecplot %>% 
-  filter(GEOID %in% top_ec) %>% 
-  ggplot() +
-  geom_line(aes(x = year, 
-                y = eviction_filing_rate, 
-                group = County, 
-                color = rural_flag)) +
-  xlab("Year") +
-  ylab("Eviction Filing Rates") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "Top Filing Counties Over Time",
-       caption = "Data from evictionlab.org") + 
-  scale_color_brewer(palette = "Spectral") +
-  theme_bw()
-
-# Plot the lowest filing counties over time 
-ecplot %>% 
-  filter(GEOID %in% bot_ec) %>% 
-  ggplot() +
-  geom_line(aes(x = year, 
-                y = eviction_filing_rate, 
-                group = GEOID, 
-                color = rural_flag)) +
-  xlab("Year") +
-  ylab("Eviction Filing Rates") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.subtitle = element_text(hjust = 0.5)) +
-  labs(title = "Lowest Filing Counties Over Time",
-       caption = "Data from evictionlab.org") + 
-  scale_color_brewer(palette = "Spectral") +
-  theme_bw() # adjust y scale # do dems of top 10 and bottom 10 
-
-# color by rural flag 
-```
-
-```{r top_filing_cty_all}
-# top 20 overall counties -- colored by region
+```{r trends_all}
+# top and bottom 20 overall counties -- colored by region
 # Calculate mean filing rate and remove any with missing data over time, or any with an avg rate less than 0.01
 ecplot <- eviction_county_2010 %>%
   group_by(GEOID) %>% 
@@ -421,7 +364,13 @@ top_ec <- ecplot %>%
   arrange(desc(avg_ev_fl_rate))
 top_ec <- c(unique(top_ec$GEOID))[1:10]
 
-# Plot the top filing counties over time
+# Sort in descending order and grab the GEOIDs with the lowest filing rates -- ADJUST Y SCALE
+bot_ec <- ecplot %>% 
+  group_by(GEOID) %>% 
+  arrange(avg_ev_fl_rate)
+bot_ec <- c(unique(bot_ec$GEOID))[1:10]
+
+# Plot the top and bottom filing counties over time
 ecplot %>% 
   filter(GEOID %in% top_ec) %>% 
   ggplot() +
@@ -432,34 +381,116 @@ ecplot %>%
   xlab("Year") +
   ylab("Eviction Filing Rates") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "Top Filing Counties Over Time",
+  labs(title = "Highest Filing Counties Over Time",
        caption = "Data from evictionlab.org") + 
   scale_color_brewer(palette = "Spectral") +
   theme_bw()
 
-# Top 5/10 counties, for each region (one plot == one region)
+ecplot %>% 
+  filter(GEOID %in% bot_ec) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing Counties Over Time",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() + 
+  ylim(0, 1)
+
+# Plot the top and bottom filing counties over time colored by rural flag 
+ecplot %>% 
+  filter(GEOID %in% top_ec) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = rural_flag)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Highest Filing Counties Over Time",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+
+ecplot %>% 
+  filter(GEOID %in% bot_ec) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = rural_flag)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing Counties Over Time",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() + 
+  ylim(0, 1)
+```
+
+```{r trends_region}
+# Calculate top and bottom for each region
 top_south <- ecplot %>%
   filter(region == "South") %>%
   group_by(GEOID) %>% 
   arrange(desc(avg_ev_fl_rate))
 top_south <- c(unique(top_south$GEOID))[1:10]
+
+bot_south <- ecplot %>%
+  filter(region == "South") %>%
+  group_by(GEOID) %>% 
+  arrange(avg_ev_fl_rate)
+bot_south <- c(unique(bot_south$GEOID))[1:10]
+
+
 top_northeast <- ecplot %>%
   filter(region == "Northeast") %>%
   group_by(GEOID) %>% 
   arrange(desc(avg_ev_fl_rate))
 top_northeast <- c(unique(top_northeast$GEOID))[1:10]
+
+bot_northeast <- ecplot %>%
+  filter(region == "Northeast") %>%
+  group_by(GEOID) %>% 
+  arrange(avg_ev_fl_rate)
+bot_northeast <- c(unique(bot_northeast$GEOID))[1:10]
+
+
 top_north_central <- ecplot %>%
   filter(region == "North Central") %>%
   group_by(GEOID) %>% 
   arrange(desc(avg_ev_fl_rate))
 top_north_central <- c(unique(top_north_central$GEOID))[1:10]
+
+bot_north_central <- ecplot %>%
+  filter(region == "North Central") %>%
+  group_by(GEOID) %>% 
+  arrange(avg_ev_fl_rate)
+bot_north_central <- c(unique(bot_north_central$GEOID))[1:10]
+
+
 top_west <- ecplot %>%
   filter(region == "West") %>%
   group_by(GEOID) %>% 
   arrange(desc(avg_ev_fl_rate))
 top_west <- c(unique(top_west$GEOID))[1:10]
 
-plot_south <- ecplot %>% 
+bot_west <- ecplot %>%
+  filter(region == "West") %>%
+  group_by(GEOID) %>% 
+  arrange(avg_ev_fl_rate)
+bot_west <- c(unique(bot_west$GEOID))[1:10]
+
+
+# Plot regional tops and bottoms
+tplot_south <- ecplot %>% 
   filter(GEOID %in% top_south) %>% 
   ggplot() +
   geom_line(aes(x = year, 
@@ -470,12 +501,30 @@ plot_south <- ecplot %>%
   ylab("Eviction Filing Rates") +
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.subtitle = element_text(hjust = 0.5)) +
-  labs(title = "Top Filing Counties in the South Over Time",
+  labs(title = "Highest Filing South Counties",
        caption = "Data from evictionlab.org") + 
   scale_color_brewer(palette = "Spectral") +
   theme_bw()
 
-plot_northeast <- ecplot %>% 
+bplot_south <- ecplot %>% 
+  filter(GEOID %in% bot_south) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing South Counties",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() + 
+  ylim(0, 1)
+
+
+tplot_northeast <- ecplot %>% 
   filter(GEOID %in% top_northeast) %>% 
   ggplot() +
   geom_line(aes(x = year, 
@@ -486,12 +535,30 @@ plot_northeast <- ecplot %>%
   ylab("Eviction Filing Rates") +
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.subtitle = element_text(hjust = 0.5)) +
-  labs(title = "Top Filing Counties in the Northeast Over Time",
+  labs(title = "Highest Filing Northeast Counties",
        caption = "Data from evictionlab.org") + 
   scale_color_brewer(palette = "Spectral") +
   theme_bw()
 
-plot_north_central <- ecplot %>% 
+bplot_northeast <- ecplot %>% 
+  filter(GEOID %in% bot_northeast) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing Northeast Counties",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() +
+  ylim(0, 1)
+
+
+tplot_north_central <- ecplot %>% 
   filter(GEOID %in% top_north_central) %>% 
   ggplot() +
   geom_line(aes(x = year, 
@@ -502,12 +569,30 @@ plot_north_central <- ecplot %>%
   ylab("Eviction Filing Rates") +
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.subtitle = element_text(hjust = 0.5)) +
-  labs(title = "Top Filing Counties in the North Central Over Time",
+  labs(title = "Highest Filing North Central Counties",
        caption = "Data from evictionlab.org") + 
   scale_color_brewer(palette = "Spectral") +
   theme_bw()
 
-plot_west <- ecplot %>% 
+bplot_north_central <- ecplot %>% 
+  filter(GEOID %in% bot_north_central) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing North Central Counties",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() + 
+  ylim(0, 1)
+
+
+tplot_west <- ecplot %>% 
   filter(GEOID %in% top_west) %>% 
   ggplot() +
   geom_line(aes(x = year, 
@@ -518,255 +603,931 @@ plot_west <- ecplot %>%
   ylab("Eviction Filing Rates") +
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.subtitle = element_text(hjust = 0.5)) +
-  labs(title = "Top Filing Counties in the West Over Time",
+  labs(title = "Highest Filing West Counties",
        caption = "Data from evictionlab.org") + 
   scale_color_brewer(palette = "Spectral") +
   theme_bw()
 
-# display all four in one plot 
-top_region_total <- grid.arrange(plot_south, plot_northeast, plot_north_central, plot_west)
+bplot_west <- ecplot %>% 
+  filter(GEOID %in% bot_west) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing West Counties",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() +
+  ylim(0, 1)
+
+
+# display top/bottom for each region in one plot 
+grid.arrange(tplot_south, tplot_northeast, tplot_north_central, tplot_west)
+grid.arrange(bplot_south, bplot_northeast, bplot_north_central, bplot_west)
 ```
 
-```{r pops_gte_mean} 
-# only include counties with populations above the median 
-# top 20 overall counties -- colored by region
-ecplot_gte_mean <- ecplot %>%
-  filter(population >= 95977)
-
-# # Create column for county + state
-# ecplot_gte_mean$County <- str_c(tools::toTitleCase(ecplot_gte_mean$name), ecplot_gte_mean$State, sep = ", ")
-
-# Sort in descending order and grab the GEOIDs with the highest filing rates
-top_ec <- ecplot_gte_mean %>% 
-  group_by(GEOID) %>% 
-  arrange(desc(avg_ev_fl_rate))
-top_ec <- c(unique(top_ec$GEOID))[1:10]
-
-# Plot the top filing counties over time
-ecplot_gte_mean %>% 
-  filter(GEOID %in% top_ec) %>% 
-  ggplot() +
-  geom_line(aes(x = year, 
-                y = eviction_filing_rate, 
-                group = GEOID, 
-                color = County)) +
-  xlab("Year") +
-  ylab("Eviction Filing Rates") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "Top Filing Counties Over Time",
-       caption = "Data from evictionlab.org") + 
-  scale_color_brewer(palette = "Spectral") +
-  theme_bw()
-
-# Top 5/10 counties, for each region (one plot == one region)
-top_south_gte_mean <- ecplot_gte_mean %>%
-  filter(region == "South") %>%
-  group_by(GEOID) %>% 
-  arrange(desc(avg_ev_fl_rate))
-top_south_gte_mean <- c(unique(top_south_gte_mean$GEOID))[1:10]
-top_northeast_gte_mean <- ecplot_gte_mean %>%
-  filter(region == "Northeast") %>%
-  group_by(GEOID) %>% 
-  arrange(desc(avg_ev_fl_rate))
-top_northeast_gte_mean <- c(unique(top_northeast_gte_mean$GEOID))[1:10]
-top_north_central_gte_mean <- ecplot_gte_mean %>%
-  filter(region == "North Central") %>%
-  group_by(GEOID) %>% 
-  arrange(desc(avg_ev_fl_rate))
-top_north_central_gte_mean <- c(unique(top_north_central_gte_mean$GEOID))[1:10]
-top_west_gte_mean <- ecplot_gte_mean %>%
-  filter(region == "West") %>%
-  group_by(GEOID) %>% 
-  arrange(desc(avg_ev_fl_rate))
-top_west_gte_mean <- c(unique(top_west_gte_mean$GEOID))[1:10]
-
-plot_south_gte_mean <- ecplot_gte_mean %>% 
-  filter(GEOID %in% top_south_gte_mean) %>% 
-  ggplot() +
-  geom_line(aes(x = year, 
-                y = eviction_filing_rate, 
-                group = GEOID, 
-                color = County)) +
-  xlab("Year") +
-  ylab("Eviction Filing Rates") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.subtitle = element_text(hjust = 0.5)) +
-  labs(title = "Top Filing Counties in the South Over Time",
-       caption = "Data from evictionlab.org") + 
-  scale_color_brewer(palette = "Spectral") + 
-  theme_bw()
-
-plot_northeast_gte_mean <- ecplot_gte_mean %>% 
-  filter(GEOID %in% top_northeast_gte_mean) %>% 
-  ggplot() +
-  geom_line(aes(x = year, 
-                y = eviction_filing_rate, 
-                group = GEOID, 
-                color = County)) +
-  xlab("Year") +
-  ylab("Eviction Filing Rates") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.subtitle = element_text(hjust = 0.5)) +
-  labs(title = "Top Filing Counties in the Northeast Over Time",
-       caption = "Data from evictionlab.org") + 
-  scale_color_brewer(palette = "Spectral") + 
-  theme_bw()
-
-plot_north_central_gte_mean <- ecplot_gte_mean %>% 
-  filter(GEOID %in% top_north_central_gte_mean) %>% 
-  ggplot() +
-  geom_line(aes(x = year, 
-                y = eviction_filing_rate, 
-                group = GEOID, 
-                color = County)) +
-  xlab("Year") +
-  ylab("Eviction Filing Rates") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.subtitle = element_text(hjust = 0.5)) +
-  labs(title = "Top Filing Counties in the North Central Over Time",
-       caption = "Data from evictionlab.org") + 
-  scale_color_brewer(palette = "Spectral") + 
-  theme_bw()
-
-plot_west_gte_mean <- ecplot_gte_mean %>% 
-  filter(GEOID %in% top_west_gte_mean) %>% 
-  ggplot() +
-  geom_line(aes(x = year, 
-                y = eviction_filing_rate, 
-                group = GEOID, 
-                color = County)) +
-  xlab("Year") +
-  ylab("Eviction Filing Rates") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.subtitle = element_text(hjust = 0.5)) +
-  labs(title = "Top Filing Counties in the West Over Time",
-       caption = "Data from evictionlab.org") + 
-  scale_color_brewer(palette = "Spectral") +
-  theme_bw()
-
-# display all four in one plot 
-top_region_pop <- grid.arrange(plot_south_gte_mean, plot_northeast_gte_mean, plot_north_central_gte_mean, plot_west_gte_mean)
-```
-
-```{r demos_top_gte_mean_density}
-# do again for bottom
+```{r demos_all}
+# Demographics for top and bottom (without pop. restriction)
 # poverty distribution 
-ecplot_gte_mean %>%
-  filter(GEOID %in% top_south_gte_mean | GEOID %in% top_north_central_gte_mean | GEOID %in% top_northeast_gte_mean | GEOID %in% top_west_gte_mean) %>%
+ecplot %>%
+  filter(GEOID %in% top_south | GEOID %in% top_north_central | GEOID %in% top_northeast | GEOID %in% top_west) %>%
   group_by(GEOID) %>%
   mutate(avg_pov = mean(poverty_rate, na.rm=TRUE)) %>%
   ggplot(aes(x=avg_pov)) + 
   geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
-  geom_density(alpha=.5, fill="#9E0142") + 
+  geom_density(alpha=.5, fill=color_pal[[1]]) + 
   theme_bw() + 
   xlab("Poverty Rate") + 
   ylab("Density") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "Poverty Rate Distribution Among Highest Eviction Filers") # +
-  # xlim(0,100)
+  labs(title = "Poverty Rates in Highest Filing Counties")
+
+ecplot %>%
+  filter(GEOID %in% bot_south | GEOID %in% bot_northeast | GEOID %in% bot_north_central | GEOID %in% bot_west) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pov = mean(poverty_rate, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pov)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[1]]) + 
+  theme_bw() + 
+  xlab("Poverty Rate") + 
+  ylab("Density") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Poverty Rates in Lowest Filing Counties")
+
+
 
 # rent burden distribution 
-ecplot_gte_mean %>%
-  filter(GEOID %in% top_south_gte_mean | GEOID %in% top_north_central_gte_mean | GEOID %in% top_northeast_gte_mean | GEOID %in% top_west_gte_mean) %>%
+ecplot %>%
+  filter(GEOID %in% top_south | GEOID %in% top_north_central | GEOID %in% top_northeast | GEOID %in% top_west) %>%
   group_by(GEOID) %>%
   mutate(avg_rb = mean(rent_burden, na.rm=TRUE)) %>%
   ggplot(aes(x=avg_rb)) + 
   geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
-  geom_density(alpha=.5, fill="#D53E4F") + 
+  geom_density(alpha=.5, fill=color_pal[[2]]) + 
   theme_bw() + 
   xlab("Rent Burden") + 
   ylab("Density") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "Rent Burden Distribution Among Highest Eviction Filers") # +
-  # xlim(0,100)
+  labs(title = "Rent Burden in Highest Filing Counties")
+
+ecplot %>%
+  filter(GEOID %in% bot_south | GEOID %in% bot_northeast | GEOID %in% bot_north_central | GEOID %in% bot_west) %>%
+  group_by(GEOID) %>%
+  mutate(avg_rb = mean(rent_burden, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_rb)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[2]]) + 
+  theme_bw() + 
+  xlab("Rent Burden") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Rent Burden in Lowest Filing Counties")
+
 
 # pct_white distribution 
-ecplot_gte_mean %>%
-  filter(GEOID %in% top_south_gte_mean | GEOID %in% top_north_central_gte_mean | GEOID %in% top_northeast_gte_mean | GEOID %in% top_west_gte_mean) %>%
+ecplot %>%
+  filter(GEOID %in% top_south | GEOID %in% top_north_central | GEOID %in% top_northeast | GEOID %in% top_west) %>%
   group_by(GEOID) %>%
   mutate(avg_pct_white = mean(pct_white, na.rm=TRUE)) %>%
   ggplot(aes(x=avg_pct_white)) + 
   geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
-  geom_density(alpha=.5, fill="#F46D43") + 
+  geom_density(alpha=.5, fill=color_pal[[3]]) + 
   theme_bw() + 
   xlab("% White") + 
   ylab("Density") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "% White Distribution Among Highest Eviction Filers") # +
-  # xlim(0,100)
+  labs(title = "% White in Highest Filing Counties") 
+
+ecplot %>%
+  filter(GEOID %in% bot_south | GEOID %in% bot_northeast | GEOID %in% bot_north_central | GEOID %in% bot_west) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_white = mean(pct_white, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_white)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[3]]) + 
+  theme_bw() + 
+  xlab("% White") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% White in Lowest Filing Counties") 
+
 
 # pct_nonwhite distribution 
-ecplot_gte_mean %>%
-  filter(GEOID %in% top_south_gte_mean | GEOID %in% top_north_central_gte_mean | GEOID %in% top_northeast_gte_mean | GEOID %in% top_west_gte_mean) %>%
+ecplot %>%
+  filter(GEOID %in% top_south | GEOID %in% top_north_central | GEOID %in% top_northeast | GEOID %in% top_west) %>%
   group_by(GEOID) %>%
   mutate(avg_pct_nonwhite = mean(pct_nonwhite, na.rm=TRUE)) %>%
   ggplot(aes(x=avg_pct_nonwhite)) + 
   geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
-  geom_density(alpha=.5, fill="#FDAE61") + 
+  geom_density(alpha=.5, fill=color_pal[[4]]) + 
   theme_bw() + 
   xlab("% Nonwhite") + 
   ylab("Density") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "% Nonwhite Distribution Among Highest Eviction Filers") # +
-  # xlim(0,100)
+  labs(title = "% Nonwhite in Highest Filing Counties") 
+
+ecplot %>%
+  filter(GEOID %in% bot_south | GEOID %in% bot_northeast | GEOID %in% bot_north_central | GEOID %in% bot_west) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_nonwhite = mean(pct_nonwhite, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_nonwhite)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[4]]) + 
+  theme_bw() + 
+  xlab("% Nonwhite") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% Nonwhite in Lowest Filing Counties") 
+
 
 # median_household_income distribution 
-ecplot_gte_mean %>%
-  filter(GEOID %in% top_south_gte_mean | GEOID %in% top_north_central_gte_mean | GEOID %in% top_northeast_gte_mean | GEOID %in% top_west_gte_mean) %>%
+ecplot %>%
+  filter(GEOID %in% top_south | GEOID %in% top_north_central | GEOID %in% top_northeast | GEOID %in% top_west) %>%
   group_by(GEOID) %>%
   mutate(avg_med_hh = mean(median_household_income, na.rm=TRUE)) %>%
   ggplot(aes(x=avg_med_hh)) + 
   geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
-  geom_density(alpha=.5, fill="#FEE08B") + 
+  geom_density(alpha=.5, fill=color_pal[[5]]) + 
   theme_bw() + 
   xlab("Median Household Income") + 
   ylab("Density") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "Median Household Income Distribution Among Highest Eviction Filers") 
+  labs(title = "Median Household Income in Highest Filing Counties") 
+
+ecplot %>%
+  filter(GEOID %in% bot_south | GEOID %in% bot_northeast | GEOID %in% bot_north_central | GEOID %in% bot_west) %>%
+  group_by(GEOID) %>%
+  mutate(avg_med_hh = mean(median_household_income, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_med_hh)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[5]]) + 
+  theme_bw() + 
+  xlab("Median Household Income") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Median Household Income in Lowest Filing Counties") 
+
 
 # unemployment_rate distribution 
-ecplot_gte_mean %>%
-  filter(GEOID %in% top_south_gte_mean | GEOID %in% top_north_central_gte_mean | GEOID %in% top_northeast_gte_mean | GEOID %in% top_west_gte_mean) %>%
+ecplot %>%
+  filter(GEOID %in% top_south | GEOID %in% top_north_central | GEOID %in% top_northeast | GEOID %in% top_west) %>%
   group_by(GEOID) %>%
   mutate(avg_ue_rt = mean(unemployment_rate, na.rm=TRUE)) %>%
   ggplot(aes(x=avg_ue_rt)) + 
   geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
-  geom_density(alpha=.5, fill="#FFFFBF") + 
+  geom_density(alpha=.5, fill=color_pal[[6]]) + 
   theme_bw() +  
   xlab("Unemployment Rate") + 
   ylab("Density") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "Unemployment Rate Distribution Among Highest Eviction Filers") # +
-  # xlim(0,100)
+  labs(title = "Unemployment Rate in Highest Filing Counties") 
+
+ecplot %>%
+  filter(GEOID %in% bot_south | GEOID %in% bot_northeast | GEOID %in% bot_north_central | GEOID %in% bot_west) %>%
+  group_by(GEOID) %>%
+  mutate(avg_ue_rt = mean(unemployment_rate, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_ue_rt)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[6]]) + 
+  theme_bw() +  
+  xlab("Unemployment Rate") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Unemployment Rate in Lowest Filing Counties") 
+
 
 # pct_rent_occ distribution 
-ecplot_gte_mean %>%
-  filter(GEOID %in% top_south_gte_mean | GEOID %in% top_north_central_gte_mean | GEOID %in% top_northeast_gte_mean | GEOID %in% top_west_gte_mean) %>%
+ecplot %>%
+  filter(GEOID %in% top_south | GEOID %in% top_north_central | GEOID %in% top_northeast | GEOID %in% top_west) %>%
   group_by(GEOID) %>%
   mutate(avg_pct_ro = mean(pct_renter_occupied, na.rm=TRUE)) %>%
   ggplot(aes(x=avg_pct_ro)) + 
   geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
-  geom_density(alpha=.5, fill="#E6F598") + 
+  geom_density(alpha=.5, fill=color_pal[[7]]) + 
   theme_bw() +  
   xlab("% Renter Occupied") + 
   ylab("Density") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "% Renter Occupied Distribution Among Highest Eviction Filers") # +
-  # xlim(0,100)
+  labs(title = "% Renter Occupied in Highest Filing Counties") 
+
+ecplot %>%
+  filter(GEOID %in% bot_south | GEOID %in% bot_northeast | GEOID %in% bot_north_central | GEOID %in% bot_west) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_ro = mean(pct_renter_occupied, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_ro)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[7]]) + 
+  theme_bw() +  
+  xlab("% Renter Occupied") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% Renter Occupied in Lowest Filing Counties") 
+
 
 # pct_rural dist
-ecplot_gte_mean %>%
-  filter(GEOID %in% top_south_gte_mean | GEOID %in% top_north_central_gte_mean | GEOID %in% top_northeast_gte_mean | GEOID %in% top_west_gte_mean) %>%
+ecplot %>%
+  filter(GEOID %in% top_south | GEOID %in% top_north_central | GEOID %in% top_northeast | GEOID %in% top_west) %>%
   group_by(GEOID) %>%
   mutate(avg_pct_rur = mean(Percent_Rural, na.rm=TRUE)) %>%
   ggplot(aes(x=avg_pct_rur)) + 
   geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
-  geom_density(alpha=.5, fill="#E6F598") + 
+  geom_density(alpha=.5, fill=color_pal[[8]]) + 
   theme_bw() +  
   xlab("% Renter Occupied") + 
   ylab("Density") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "% Renter Occupied Distribution Among Highest Eviction Filers")
+  labs(title = "% Renter Occupied in Highest Filing Counties")
+
+ecplot %>%
+  filter(GEOID %in% bot_south | GEOID %in% bot_northeast | GEOID %in% bot_north_central | GEOID %in% bot_west) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_rur = mean(Percent_Rural, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_rur)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[8]]) + 
+  theme_bw() +  
+  xlab("% Renter Occupied") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% Renter Occupied in Lowest Filing Counties")
+```
+
+```{r trends_gte_pop} 
+# only include counties with populations above the mean 
+ecplot_gte_mean <- ecplot %>%
+  filter(population >= summary(ecplot$population)[["Mean"]])
+
+# Sort in descending order and grab the GEOIDs with the highest filing rates
+top_ec_pop <- ecplot_gte_mean %>% 
+  group_by(GEOID) %>% 
+  arrange(desc(avg_ev_fl_rate))
+top_ec_pop <- c(unique(top_ec_pop$GEOID))[1:10]
+
+# Sort in descending order and grab the GEOIDs with the lowest filing rates 
+bot_ec_pop <- ecplot_gte_mean %>% 
+  group_by(GEOID) %>% 
+  arrange(avg_ev_fl_rate)
+bot_ec_pop <- c(unique(bot_ec_pop$GEOID))[1:10]
+
+# Plot the top and bottom filing counties over time
+ecplot_gte_mean %>% 
+  filter(GEOID %in% top_ec_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Highest Filing Counties* Over Time",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+
+ecplot_gte_mean %>% 
+  filter(GEOID %in% bot_ec_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing Counties* Over Time",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() + 
+  ylim(0, 1)
+
+# Plot the top and bottom filing counties over time colored by rural flag 
+ecplot_gte_mean %>% 
+  filter(GEOID %in% top_ec_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = rural_flag)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Highest Filing Counties* Over Time",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+
+ecplot_gte_mean %>% 
+  filter(GEOID %in% bot_ec_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = rural_flag)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing Counties* Over Time",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() + 
+  ylim(0, 1)
+```
+
+```{r trends_regional_gte_pop}
+top_south_pop <- ecplot_gte_mean %>%
+  filter(region == "South") %>%
+  group_by(GEOID) %>% 
+  arrange(desc(avg_ev_fl_rate))
+top_south_pop <- c(unique(top_south_pop$GEOID))[1:10]
+
+bot_south_pop <- ecplot_gte_mean %>%
+  filter(region == "South") %>%
+  group_by(GEOID) %>% 
+  arrange(avg_ev_fl_rate)
+bot_south_pop <- c(unique(bot_south_pop$GEOID))[1:10]
+
+
+top_northeast_pop <- ecplot_gte_mean %>%
+  filter(region == "Northeast") %>%
+  group_by(GEOID) %>% 
+  arrange(desc(avg_ev_fl_rate))
+top_northeast_pop <- c(unique(top_northeast_pop$GEOID))[1:10]
+
+bot_northeast_pop <- ecplot_gte_mean %>%
+  filter(region == "Northeast") %>%
+  group_by(GEOID) %>% 
+  arrange(avg_ev_fl_rate)
+bot_northeast_pop <- c(unique(bot_northeast_pop$GEOID))[1:10]
+
+
+top_north_central_pop <- ecplot_gte_mean %>%
+  filter(region == "North Central") %>%
+  group_by(GEOID) %>% 
+  arrange(desc(avg_ev_fl_rate))
+top_north_central_pop <- c(unique(top_north_central_pop$GEOID))[1:10]
+
+bot_north_central_pop <- ecplot_gte_mean %>%
+  filter(region == "North Central") %>%
+  group_by(GEOID) %>% 
+  arrange(avg_ev_fl_rate)
+bot_north_central_pop <- c(unique(bot_north_central_pop$GEOID))[1:10]
+
+
+top_west_pop <- ecplot_gte_mean %>%
+  filter(region == "West") %>%
+  group_by(GEOID) %>% 
+  arrange(desc(avg_ev_fl_rate))
+top_west_pop <- c(unique(top_west_pop$GEOID))[1:10]
+
+bot_west_pop <- ecplot_gte_mean %>%
+  filter(region == "West") %>%
+  group_by(GEOID) %>% 
+  arrange(avg_ev_fl_rate)
+bot_west_pop <- c(unique(bot_west_pop$GEOID))[1:10]
+
+
+# Plot regional tops and bottoms
+tplot_south_pop <- ecplot_gte_mean %>% 
+  filter(GEOID %in% top_south_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Highest Filing South Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+
+bplot_south_pop <- ecplot_gte_mean %>% 
+  filter(GEOID %in% bot_south_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing South Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() + 
+  ylim(0, 1)
+
+
+tplot_northeast_pop <- ecplot_gte_mean %>% 
+  filter(GEOID %in% top_northeast_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Highest Filing Northeast Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+
+bplot_northeast_pop <- ecplot_gte_mean %>% 
+  filter(GEOID %in% bot_northeast_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing Northeast Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() +
+  ylim(0, 1)
+
+
+tplot_north_central_pop <- ecplot_gte_mean %>% 
+  filter(GEOID %in% top_north_central_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Highest Filing North Central Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+
+bplot_north_central_pop <- ecplot_gte_mean %>% 
+  filter(GEOID %in% bot_north_central_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing North Central Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() + 
+  ylim(0, 1)
+
+
+tplot_west_pop <- ecplot_gte_mean %>% 
+  filter(GEOID %in% top_west_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Highest Filing West Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+
+bplot_west_pop <- ecplot_gte_mean %>% 
+  filter(GEOID %in% bot_west_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing West Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() +
+  ylim(0, 1)
+
+
+# display top/bottom for each region in one plot 
+grid.arrange(tplot_south_pop, tplot_northeast_pop, tplot_north_central_pop, tplot_west_pop)
+grid.arrange(bplot_south_pop, bplot_northeast_pop, bplot_north_central_pop, bplot_west_pop)
+```
+
+```{r trends_regional_gte_pop_rural}
+# Plot regional tops and bottoms
+tplot_south_pop_rural <- ecplot_gte_mean %>% 
+  filter(GEOID %in% top_south_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Highest Filing South Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+
+bplot_south_pop_rural <- ecplot_gte_mean %>% 
+  filter(GEOID %in% bot_south_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing South Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() + 
+  ylim(0, 1)
+
+
+tplot_northeast_pop_rural <- ecplot_gte_mean %>% 
+  filter(GEOID %in% top_northeast_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Highest Filing Northeast Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+
+bplot_northeast_pop_rural <- ecplot_gte_mean %>% 
+  filter(GEOID %in% bot_northeast_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing Northeast Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() +
+  ylim(0, 1)
+
+
+tplot_north_central_pop_rural <- ecplot_gte_mean %>% 
+  filter(GEOID %in% top_north_central_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Highest Filing North Central Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+
+bplot_north_central_pop_rural <- ecplot_gte_mean %>% 
+  filter(GEOID %in% bot_north_central_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing North Central Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() + 
+  ylim(0, 1)
+
+
+tplot_west_pop_rural <- ecplot_gte_mean %>% 
+  filter(GEOID %in% top_west_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Highest Filing West Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+
+bplot_west_pop_rural <- ecplot_gte_mean %>% 
+  filter(GEOID %in% bot_west_pop) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = County)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = "Lowest Filing West Counties",
+       subtitle = "*among populations greater than the mean",
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw() +
+  ylim(0, 1)
+
+
+# display top/bottom for each region in one plot 
+grid.arrange(tplot_south_pop_rural, tplot_northeast_pop_rural, tplot_north_central_pop_rural, tplot_west_pop_rural)
+grid.arrange(bplot_south_pop_rural, bplot_northeast_pop_rural, bplot_north_central_pop_rural, bplot_west_pop_rural)
+```
+
+```{r demos_gte_pop}
+color_pal <- c(brewer.pal(11, "Spectral"))
+
+# poverty distribution 
+ecplot_gte_mean %>%
+  filter(GEOID %in% top_south_pop | GEOID %in% top_north_central_pop | GEOID %in% top_northeast_pop | GEOID %in% top_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pov = mean(poverty_rate, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pov)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[1]]) + 
+  theme_bw() + 
+  xlab("Poverty Rate") + 
+  ylab("Density") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Poverty Rates in Highest Filing Counties")
+
+ecplot_gte_mean %>%
+  filter(GEOID %in% bot_south_pop | GEOID %in% bot_north_central_pop | GEOID %in% bot_northeast_pop | GEOID %in% bot_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pov = mean(poverty_rate, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pov)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[1]]) + 
+  theme_bw() + 
+  xlab("Poverty Rate") + 
+  ylab("Density") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Poverty Rates in Lowest Filing Counties")
+
+
+
+# rent burden distribution 
+ecplot_gte_mean %>%
+  filter(GEOID %in% top_south_pop | GEOID %in% top_north_central_pop | GEOID %in% top_northeast_pop | GEOID %in% top_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_rb = mean(rent_burden, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_rb)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[2]]) + 
+  theme_bw() + 
+  xlab("Rent Burden") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Rent Burden in Highest Filing Counties")
+
+ecplot_gte_mean %>%
+  filter(GEOID %in% bot_south_pop | GEOID %in% bot_north_central_pop | GEOID %in% bot_northeast_pop | GEOID %in% bot_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_rb = mean(rent_burden, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_rb)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[2]]) + 
+  theme_bw() + 
+  xlab("Rent Burden") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Rent Burden in Lowest Filing Counties")
+
+
+# pct_white distribution 
+ecplot_gte_mean %>%
+  filter(GEOID %in% top_south_pop | GEOID %in% top_north_central_pop | GEOID %in% top_northeast_pop | GEOID %in% top_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_white = mean(pct_white, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_white)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[3]]) + 
+  theme_bw() + 
+  xlab("% White") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% White in Highest Filing Counties") 
+
+ecplot_gte_mean %>%
+  filter(GEOID %in% bot_south_pop | GEOID %in% bot_north_central_pop | GEOID %in% bot_northeast_pop | GEOID %in% bot_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_white = mean(pct_white, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_white)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[3]]) + 
+  theme_bw() + 
+  xlab("% White") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% White in Lowest Filing Counties") 
+
+
+# pct_nonwhite distribution 
+ecplot_gte_mean %>%
+  filter(GEOID %in% top_south_pop | GEOID %in% top_north_central_pop | GEOID %in% top_northeast_pop | GEOID %in% top_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_nonwhite = mean(pct_nonwhite, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_nonwhite)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[4]]) + 
+  theme_bw() + 
+  xlab("% Nonwhite") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% Nonwhite in Highest Filing Counties") 
+
+ecplot_gte_mean %>%
+  filter(GEOID %in% bot_south_pop | GEOID %in% bot_north_central_pop | GEOID %in% bot_northeast_pop | GEOID %in% bot_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_nonwhite = mean(pct_nonwhite, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_nonwhite)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[4]]) + 
+  theme_bw() + 
+  xlab("% Nonwhite") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% Nonwhite in Lowest Filing Counties") 
+
+
+# median_household_income distribution 
+ecplot_gte_mean %>%
+  filter(GEOID %in% top_south_pop | GEOID %in% top_north_central_pop | GEOID %in% top_northeast_pop | GEOID %in% top_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_med_hh = mean(median_household_income, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_med_hh)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[5]]) + 
+  theme_bw() + 
+  xlab("Median Household Income") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Median Household Income in Highest Filing Counties") 
+
+ecplot_gte_mean %>%
+  filter(GEOID %in% bot_south_pop | GEOID %in% bot_north_central_pop | GEOID %in% bot_northeast_pop | GEOID %in% bot_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_med_hh = mean(median_household_income, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_med_hh)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[5]]) + 
+  theme_bw() + 
+  xlab("Median Household Income") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Median Household Income in Lowest Filing Counties") 
+
+
+# unemployment_rate distribution 
+ecplot_gte_mean %>%
+  filter(GEOID %in% top_south_pop | GEOID %in% top_north_central_pop | GEOID %in% top_northeast_pop | GEOID %in% top_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_ue_rt = mean(unemployment_rate, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_ue_rt)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[6]]) + 
+  theme_bw() +  
+  xlab("Unemployment Rate") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Unemployment Rate in Highest Filing Counties") 
+
+ecplot_gte_mean %>%
+  filter(GEOID %in% bot_south_pop | GEOID %in% bot_north_central_pop | GEOID %in% bot_northeast_pop | GEOID %in% bot_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_ue_rt = mean(unemployment_rate, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_ue_rt)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[6]]) + 
+  theme_bw() +  
+  xlab("Unemployment Rate") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Unemployment Rate in Lowest Filing Counties") 
+
+
+# pct_rent_occ distribution 
+ecplot_gte_mean %>%
+  filter(GEOID %in% top_south_pop | GEOID %in% top_north_central_pop | GEOID %in% top_northeast_pop | GEOID %in% top_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_ro = mean(pct_renter_occupied, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_ro)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[7]]) + 
+  theme_bw() +  
+  xlab("% Renter Occupied") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% Renter Occupied in Highest Filing Counties") 
+
+ecplot_gte_mean %>%
+  filter(GEOID %in% bot_south_pop | GEOID %in% bot_north_central_pop | GEOID %in% bot_northeast_pop | GEOID %in% bot_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_ro = mean(pct_renter_occupied, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_ro)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[7]]) + 
+  theme_bw() +  
+  xlab("% Renter Occupied") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% Renter Occupied in Lowest Filing Counties") 
+
+
+# pct_rural dist
+ecplot_gte_mean %>%
+  filter(GEOID %in% top_south_pop | GEOID %in% top_north_central_pop | GEOID %in% top_northeast_pop | GEOID %in% top_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_rur = mean(Percent_Rural, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_rur)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[8]]) + 
+  theme_bw() +  
+  xlab("% Renter Occupied") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% Renter Occupied in Highest Filing Counties")
+
+ecplot_gte_mean %>%
+  filter(GEOID %in% bot_south_pop | GEOID %in% bot_north_central_pop | GEOID %in% bot_northeast_pop | GEOID %in% bot_west_pop) %>%
+  group_by(GEOID) %>%
+  mutate(avg_pct_rur = mean(Percent_Rural, na.rm=TRUE)) %>%
+  ggplot(aes(x=avg_pct_rur)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_pal[[8]]) + 
+  theme_bw() +  
+  xlab("% Renter Occupied") + 
+  ylab("Density") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% Renter Occupied in Lowest Filing Counties")
 ```
 
 ## K means clustering for determining similar counties
@@ -803,13 +1564,11 @@ How to determine optimal clusters:
 
 1. elbow method
 2. silhouette method
-3. gap statistic
-4. Use the `Nbclust` package which provides 30 indices for determining the relevant number of clusters and proposes to users the best clustering scheme from the different results obtained by varying all combinations of number of clusters, distance measures, and clustering methods.
+3. gap statistic (computationally expensive + extremely slow)
 
 ```{r kmeans_shiny}
 # add filter for year for kmeans for shiny app 
 # focus on base demos 
-
 # pseudo code for app
 # km <- eviction_county_2010 %>%
 #   filter(year == $year) %>%
@@ -834,32 +1593,25 @@ km <- eviction_county_2010 %>%
   group_by(GEOID) %>%
   mutate(average_population = mean(population, na.rm = TRUE), average_poverty_rate = mean(poverty_rate, na.rm = TRUE), average_pct_renter_occupied = mean(pct_renter_occupied, na.rm = TRUE), average_median_gross_rent = mean(median_gross_rent, na.rm = TRUE), average_median_household_income = mean(median_household_income, na.rm = TRUE), average_median_property_value = mean(median_property_value, na.rm = TRUE), average_rent_burden = mean(rent_burden, na.rm = TRUE), average_pct_white = mean(pct_white, na.rm = TRUE), average_pct_af_am = mean(pct_af_am, na.rm = TRUE), average_pct_hispanic = mean(pct_hispanic, na.rm = TRUE), average_pct_am_ind = mean(pct_am_ind, na.rm = TRUE), average_pct_asian = mean(pct_asian, na.rm = TRUE), average_pct_nh_pi = mean(pct_nh_pi, na.rm = TRUE), average_pct_multiple = mean(pct_multiple, na.rm = TRUE), average_pct_other = mean(pct_other, na.rm = TRUE), average_Percent_Rural = mean(Percent_Rural, na.rm = TRUE), average_unemployment_rate = mean(unemployment_rate, na.rm = TRUE), average_pct_nonwhite = mean(pct_nonwhite, na.rm = TRUE)) %>%
   filter(State != "AK" & State != "HI")
-
 km <- subset(km, select = c("GEOID", "average_population", "average_poverty_rate", "average_pct_renter_occupied", "average_median_gross_rent", "average_median_household_income", "average_median_property_value", "average_rent_burden", "average_pct_white", "average_pct_af_am", "average_pct_hispanic", "average_pct_am_ind", "average_pct_asian", "average_pct_nh_pi", "average_pct_multiple", "average_pct_other", "average_Percent_Rural", "average_unemployment_rate", "average_pct_nonwhite" ))
-
 # dedupe and drop nulls
 km <- km %>%
   distinct() %>% # reduces to 3147
   drop_na() # reduces to 3138
-
 # set GEOID (chr.) to index
 km <- km %>%
   column_to_rownames(., var = "GEOID")
-
 km_sc <- km
-
 # scale numerical data
 library(MASS)
 ind <- sapply(km_sc, is.numeric)
 km_sc[ind] <- lapply(km_sc[ind], scale)
-
 # determine optimal clusters 
 # elbow 
 set.seed(123)
 fviz_nbclust(km_sc, kmeans, method = "wss") # 3
 # silhouette
 fviz_nbclust(km_sc, kmeans, method = "silhouette") # 3
-
 # Results
 # Compute k-means clustering
 # play around with methods and k amounts 
@@ -909,15 +1661,14 @@ fviz_cluster(mq_km5, data = km_sc)
 fviz_cluster(mq_km6, data = km_sc)
 fviz_cluster(mq_km7, data = km_sc)
  
-
 # Extract clusters and add to data frame
-km$cluster <- km3$cluster
-# reintroduce GEOID as column
-km$GEOID <- c(row.names(km))
-# reset index 
-rownames(km) <- NULL
-km <- km %>%
-  dplyr::select(GEOID, everything())
+# km$cluster <- km3$cluster
+# # reintroduce GEOID as column
+# km$GEOID <- c(row.names(km))
+# # reset index 
+# rownames(km) <- NULL
+# km <- km %>%
+#   dplyr::select(GEOID, everything())
 ```
 
 ```{r cluster_eda}
