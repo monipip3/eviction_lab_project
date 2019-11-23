@@ -273,24 +273,24 @@ fviz_nbclust(km_sc, kmeans, method = "silhouette") # 3
 # play around with methods and k amounts 
 set.seed(123)
 # Hartigan-Wong
-# hw_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Hartigan-Wong")
+hw_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Hartigan-Wong")
 # hw_km4 <- kmeans(km_sc, 4, nstart = 25, algorithm = "Hartigan-Wong")
 # # hw_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "Hartigan-Wong")
 # # hw_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "Hartigan-Wong")
 # # hw_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "Hartigan-Wong")
-# # fviz_cluster(hw_km3, data = km_sc)
+fviz_cluster(hw_km3, data = km_sc)
 # fviz_cluster(hw_km4, data = km_sc)
 # fviz_cluster(hw_km5, data = km_sc)
 # fviz_cluster(hw_km6, data = km_sc)
 # fviz_cluster(hw_km7, data = km_sc)
 # Lloyd
 # ll_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Lloyd")
-ll_km4 <- kmeans(km_sc, 4, nstart = 25, algorithm = "Lloyd")
+# ll_km4 <- kmeans(km_sc, 4, nstart = 25, algorithm = "Lloyd")
 # ll_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "Lloyd")
 # ll_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "Lloyd")
 # ll_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "Lloyd")
 # fviz_cluster(ll_km3, data = km_sc)
-fviz_cluster(ll_km4, data = km_sc)
+# fviz_cluster(ll_km4, data = km_sc)
 # fviz_cluster(ll_km5, data = km_sc)
 # fviz_cluster(ll_km6, data = km_sc)
 # fviz_cluster(ll_km7, data = km_sc)
@@ -318,13 +318,13 @@ fviz_cluster(ll_km4, data = km_sc)
 # fviz_cluster(mq_km7, data = km_sc)
  
 # Extract clusters and add to data frame
-# km$hw_km3 <- hw_km3$cluster 
+km$cluster <- hw_km3$cluster
 # km$hw_km4 <- hw_km4$cluster 
 # km$hw_km5 <- hw_km5$cluster 
 # km$hw_km6 <- hw_km6$cluster 
 # km$hw_km7 <- hw_km7$cluster 
 # km$ll_km3 <- ll_km3$cluster
-km$cluster <- ll_km4$cluster
+# km$cluster <- ll_km4$cluster
 # km$ll_km5 <- ll_km5$cluster
 # km$ll_km6 <- ll_km6$cluster
 # km$ll_km7 <- ll_km7$cluster
@@ -353,7 +353,7 @@ km <- km %>%
 # thw_km6 <- table(km$hw_km6)
 # thw_km7 <- table(km$hw_km7)
 # tll_km3 <- table(km$ll_km3)
-tll_km4 <- table(km$ll_km4)
+# tll_km4 <- table(km$ll_km4)
 # tll_km5 <- table(km$ll_km5)
 # tll_km6 <- table(km$ll_km6)
 # tll_km7 <- table(km$ll_km7)
