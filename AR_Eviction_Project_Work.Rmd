@@ -299,7 +299,7 @@ eviction_by_county
 eviction_county_2010 <- eviction_county %>%
   filter(year >= 2010) %>%
   mutate(rural_flag = as.character(rural_flag))
-eviction_county_2010$region[eviction_county_2010$name == "District of Columbia"] <- "Northeast"
+eviction_county_2010$region[eviction_county_2010$name == "District of Columbia"] <- "South"
 # load color palette
 color_pal <- c(brewer.pal(11, "Spectral"))
 ```
@@ -936,33 +936,15 @@ tmq_km5 <- table(km$mq_km5)
 tmq_km6 <- table(km$mq_km6)
 tmq_km7 <- table(km$mq_km7)
 
-table(km$hw_km3)
-table(km$hw_km4)
-table(km$hw_km5)
-table(km$hw_km6)
-table(km$hw_km7)
-table(km$ll_km3)
-table(km$ll_km4)
-table(km$ll_km5)
-table(km$ll_km6)
-table(km$ll_km7)
-table(km$fg_km3)
-table(km$fg_km4)
-table(km$fg_km5)
-table(km$fg_km6)
-table(km$fg_km7)
-table(km$mq_km3)
-table(km$mq_km4)
-table(km$mq_km5)
-table(km$mq_km6)
-table(km$mq_km7)
+# the second and fourth 4 clusters seem to be the best options--more clusters, but less overlap
+km$cluster <- km$ll_km4 
 ```
 
 ```{r cluster_eda}
-# MAKE FUNCTION OUT OF THIS TOO
-geo_clust <- subset(km, select = c("GEOID", "hw_km3", "hw_km4", "hw_km5", "hw_km6", "hw_km7", "ll_km3", "ll_km4", "ll_km5", "ll_km6", "ll_km7", "fg_km3", "fg_km4", "fg_km5", "fg_km6", "fg_km7", "mq_km3", "mq_km4", "mq_km5", "mq_km6", "mq_km7"))
+geo_clust <- subset(km, select = c("GEOID", "cluster"))
 ecp_cl <- merge(eviction_county_2010, geo_clust)
 ecp_cl$cluster <- as.character(ecp_cl$cluster)
+
 # box plots
 ggplot(data = ecp_cl, mapping = aes(x = cluster, y = poverty_rate)) +
   geom_boxplot() +
@@ -996,6 +978,7 @@ ggplot(data = ecp_cl, mapping = aes(x = cluster, y = Percent_Rural)) +
   geom_boxplot() +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "Rural Percent by Cluster")
+
 # stacked bar chart of region in each cluster 
 ecp_cl %>%
   filter(!(is.na(region))) %>%
@@ -1005,13 +988,3 @@ ecp_cl %>%
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "Regions by Cluster")
 ```
-
-AR To Do:
-
-* top 20 overall counties and then color by region + top 5/10 faceted by region -- metric is avg eviction filing rate
-* eda for each cluster of all the averages -- i.e. pct white, population/pop. growth, rent burden, income, etc. 
-* write out code for the shiny app to incorporate filters and crap into kmeans
-* write out code to select similar counties from clusters based on selected county for shiny app 
-* rewrite my line graph code to be more dynamic (i.e. have the ability to filter down to state-level top and bottom filing rates)
-* start bones of presentation if A) someone already hasn't or B) someone else doesn't have their heart set on it
-  * include gganimate in presentation (screen record)
