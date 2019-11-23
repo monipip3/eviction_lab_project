@@ -1,14 +1,13 @@
 ---
 title: "Eviction Lab Data Exploration"
-author: "Allison Shafer, Monica Puerto, Alison Ragan"
+author: "Allison Shafer, Monica Puerto, Allison Ragan"
 date: "12/4/2019"
 output:
   pdf_document: default
   html_document: default
 ---
 ```{r knitr setup, echo=FALSE}
-
-knitr::opts_chunk$set(echo = FALSE,eval = FALSE,include = FALSE,fig.height = 12,fig.width = 8)
+knitr::opts_chunk$set(echo = FALSE,eval = TRUE,include = FALSE,fig.height = 12,fig.width = 8)
 
 ```
 
@@ -25,7 +24,6 @@ suppressMessages(library(stringr))
 suppressMessages(library(purrr))
 suppressMessages(library(gganimate))
 suppressMessages(library(readxl))
-#suppressMessages(library(gifski))
 suppressMessages(library(tidycensus))
 suppressMessages(library(rvest))
 suppressMessages(library(tmap))
@@ -34,21 +32,18 @@ suppressMessages(library(tigris))
 suppressMessages(library(sf))
 suppressMessages(library(gridExtra))
 suppressMessages(library(corrplot))
-
-# 11/8: Added packages "tmap", "spData", "tigris"
-#install.packages("tmap")
-#install.packages("spData")
-#install.packages("tigris")
-
+suppressMessages(library(factoextra))
+suppressMessages(library(cluster))
+suppressMessages(library(RColorBrewer))
+suppressMessages(library(MASS))
 ```
 
 # Intro
 
-  
 
 
 # Data Downloads
-```{r download data - eviction dataset,echo=FALSE}
+```{r download data - eviction dataset}
 
 # set up a data directory if it does not exist already
 if(!file.exists("./data")) {dir.create("./data")}
@@ -70,7 +65,7 @@ eviction_US_all <- read_csv("./data/eviction_US_all.csv")
 names(eviction_US_all) <- gsub(x = names(eviction_US_all), pattern = "-", replacement = "_")  
 ```
 
-```{r import rural urban,echo=FALSE}
+```{r import rural urban}
 
 # download and load urbal/rural classifications
 
@@ -95,19 +90,15 @@ urban_rural <- urban_rural %>%
   rename("Percent_Rural" = "2010 Census \r\nPercent Rural",
          "GEOID" = "2015 GEOID") 
 
-# check names were updated
-names(urban_rural)
 
-# select only needed fields
+# create Rural Flag where Ruran Percentage is greater than 50%
 urban_rural <-urban_rural %>%
   mutate(rural_flag = ifelse(round(Percent_Rural, 3) > 50, 1, 0)) %>%
   select(GEOID, State, Percent_Rural, rural_flag) 
 
-# view cleaned up dataset
-urban_rural
 ```
 
-```{r Webscrape US Labor Stats,echo=FALSE}
+```{r Webscrape US Labor Stats}
 if(!file.exists("./data/labor_data")) {dir.create("./data/labor_data")}
 
 #save url into a variable
@@ -154,17 +145,16 @@ map(labor_files,read_files) -> all_labor_data
 
 #join all the US labor tables
 all_labor_data %>% reduce(full_join) -> all_labor_data
+
+#remove some rows that have NA in Year and remove empty column next to year
+filter(all_labor_data,!is.na(year)) %>% select(-6) -> all_labor_data
 ```
 
 
-``` {r clean up data set,echo=FALSE}
-#remove some rows that have NA in Year and remove empty column next to year
-filter(all_labor_data,!is.na(year)) %>% select(-6) -> all_labor_data
- 
+``` {r small data transformations}
  
 #creating a GEOID to join 
 all_labor_data$GEOID <- str_c(all_labor_data$state_fips_code,all_labor_data$county_fips_code)
- 
  
 #change year to integer
 all_labor_data$year <- as.integer(all_labor_data$year)
@@ -185,7 +175,7 @@ spatial_data <- "./data/county_shp.zip"
 unzip(spatial_data, overwrite = TRUE, exdir = "./data/spatial/county_shp")
 
 county_boundaries <- st_read("./data/spatial/county_shp/cb_2018_us_county_500k.shp")
-county_boundaries
+
 
 ```
 
@@ -197,8 +187,6 @@ eviction_county <- eviction_US_all %>%
   right_join(urban_rural, key = "GEOID") %>% 
   left_join(select(all_labor_data,GEOID,year,unemployment_rate), by =c("GEOID" = "GEOID", "year"="year"))
          
-eviction_county 
-
 ```
 
 ```{r make state dataset}
@@ -206,7 +194,6 @@ eviction_county
 eviction_state <- eviction_US_all %>%
   filter(nchar(GEOID) == 2)
          
-eviction_state
 
 ```
 
@@ -219,7 +206,7 @@ left_join(eviction_state, states_regions, by = c("name"="states")) -> eviction_s
 left_join(eviction_county, states_regions,by = c("parent_location"="states")) -> eviction_county
 
 #Need to replace DC with a region
-eviction_county$region[eviction_county$name == "District of Columbia"] <- "Northeast"
+eviction_county$region[eviction_county$name == "District of Columbia"] <- "South"
 
 #remove rows with no region
 eviction_county %>% drop_na(region) -> eviction_county
@@ -229,7 +216,184 @@ eviction_county %>% drop_na(region) -> eviction_county
 eviction_county$pct_nonwhite <- 100 - eviction_county$pct_white
 ```
 
-  
+
+```{r removing 2009 and earlier and non continental US }
+eviction_county_2010 <- eviction_county %>%
+  filter(year >= 2010) %>%
+  mutate(rural_flag = as.character(rural_flag)) %>%
+  filter(!State %in% c('AK', 'HI'))
+
+eviction_state_2010 <- eviction_state %>%
+  filter(year >= 2010) %>%
+  filter(!GEOID %in% c('02', '15', '60', '66', '69', '72', '78')) 
+```
+
+```{r Kmeans creating cluster}
+km <- eviction_county_2010 %>%
+  group_by(GEOID) %>%
+  mutate(average_population = mean(population, na.rm = TRUE), 
+         average_poverty_rate = mean(poverty_rate, na.rm = TRUE), 
+         average_pct_renter_occupied = mean(pct_renter_occupied, na.rm = TRUE), 
+         average_median_gross_rent = mean(median_gross_rent, na.rm = TRUE), 
+         average_median_household_income = mean(median_household_income, na.rm = TRUE), 
+         average_median_property_value = mean(median_property_value, na.rm = TRUE), 
+         average_rent_burden = mean(rent_burden, na.rm = TRUE), 
+         average_pct_white = mean(pct_white, na.rm = TRUE), 
+         average_pct_af_am = mean(pct_af_am, na.rm = TRUE), 
+         average_pct_hispanic = mean(pct_hispanic, na.rm = TRUE), 
+         average_pct_am_ind = mean(pct_am_ind, na.rm = TRUE), 
+         average_pct_asian = mean(pct_asian, na.rm = TRUE), 
+         average_pct_nh_pi = mean(pct_nh_pi, na.rm = TRUE), 
+         average_pct_multiple = mean(pct_multiple, na.rm = TRUE), 
+         average_pct_other = mean(pct_other, na.rm = TRUE), 
+         average_Percent_Rural = mean(Percent_Rural, na.rm = TRUE), 
+         average_unemployment_rate = mean(unemployment_rate, na.rm = TRUE), 
+         average_pct_nonwhite = mean(pct_nonwhite, na.rm = TRUE)) 
+  #filter(State != "AK" & State != "HI")
+km <- subset(km, select = c("GEOID", "average_population", "average_poverty_rate", "average_pct_renter_occupied", "average_median_gross_rent", "average_median_household_income", "average_median_property_value", "average_rent_burden", "average_pct_white", "average_pct_af_am", "average_pct_hispanic", "average_pct_am_ind", "average_pct_asian", "average_pct_nh_pi", "average_pct_multiple", "average_pct_other", "average_Percent_Rural", "average_unemployment_rate", "average_pct_nonwhite" ))
+# dedupe and drop nulls
+km <- km %>%
+  distinct() %>% # reduces to 3147
+  drop_na() # reduces to 3138
+# set GEOID (chr.) to index
+km <- km %>%
+  column_to_rownames(., var = "GEOID")
+km_sc <- km
+# scale numerical data
+ind <- sapply(km_sc, is.numeric)
+km_sc[ind] <- lapply(km_sc[ind], scale)
+# determine optimal clusters 
+# elbow 
+set.seed(123)
+fviz_nbclust(km_sc, kmeans, method = "wss") # 3
+# silhouette
+fviz_nbclust(km_sc, kmeans, method = "silhouette") # 3
+# Results
+# Compute k-means clustering
+# play around with methods and k amounts 
+set.seed(123)
+# Hartigan-Wong
+# hw_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Hartigan-Wong")
+# hw_km4 <- kmeans(km_sc, 4, nstart = 25, algorithm = "Hartigan-Wong")
+# # hw_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "Hartigan-Wong")
+# # hw_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "Hartigan-Wong")
+# # hw_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "Hartigan-Wong")
+# # fviz_cluster(hw_km3, data = km_sc)
+# fviz_cluster(hw_km4, data = km_sc)
+# fviz_cluster(hw_km5, data = km_sc)
+# fviz_cluster(hw_km6, data = km_sc)
+# fviz_cluster(hw_km7, data = km_sc)
+# Lloyd
+# ll_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Lloyd")
+ll_km4 <- kmeans(km_sc, 4, nstart = 25, algorithm = "Lloyd")
+# ll_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "Lloyd")
+# ll_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "Lloyd")
+# ll_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "Lloyd")
+# fviz_cluster(ll_km3, data = km_sc)
+fviz_cluster(ll_km4, data = km_sc)
+# fviz_cluster(ll_km5, data = km_sc)
+# fviz_cluster(ll_km6, data = km_sc)
+# fviz_cluster(ll_km7, data = km_sc)
+# # Forgy
+# fg_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Forgy")
+# fg_km4 <- kmeans(km_sc, 4, nstart = 25, algorithm = "Forgy")
+# fg_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "Forgy")
+# fg_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "Forgy")
+# fg_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "Forgy")
+# fviz_cluster(fg_km3, data = km_sc)
+# fviz_cluster(fg_km4, data = km_sc)
+# fviz_cluster(fg_km5, data = km_sc)
+# fviz_cluster(fg_km6, data = km_sc)
+# fviz_cluster(fg_km7, data = km_sc)
+# # MacQueen
+# mq_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "MacQueen")
+# mq_km4 <- kmeans(km_sc, 4, nstart = 25 , algorithm = "MacQueen")
+# mq_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "MacQueen")
+# mq_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "MacQueen")
+# mq_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "MacQueen")
+# fviz_cluster(mq_km3, data = km_sc)
+# fviz_cluster(mq_km4, data = km_sc)
+# fviz_cluster(mq_km5, data = km_sc)
+# fviz_cluster(mq_km6, data = km_sc)
+# fviz_cluster(mq_km7, data = km_sc)
+ 
+# Extract clusters and add to data frame
+# km$hw_km3 <- hw_km3$cluster 
+# km$hw_km4 <- hw_km4$cluster 
+# km$hw_km5 <- hw_km5$cluster 
+# km$hw_km6 <- hw_km6$cluster 
+# km$hw_km7 <- hw_km7$cluster 
+# km$ll_km3 <- ll_km3$cluster
+km$cluster <- ll_km4$cluster
+# km$ll_km5 <- ll_km5$cluster
+# km$ll_km6 <- ll_km6$cluster
+# km$ll_km7 <- ll_km7$cluster
+# km$fg_km3 <- fg_km3$cluster
+# km$fg_km4 <- fg_km4$cluster
+# km$fg_km5 <- fg_km5$cluster
+# km$fg_km6 <- fg_km6$cluster
+# km$fg_km7 <- fg_km7$cluster
+# km$mq_km3 <- mq_km3$cluster
+# km$mq_km4 <- mq_km4$cluster
+# km$mq_km5 <- mq_km5$cluster
+# km$mq_km6 <- mq_km6$cluster
+# km$mq_km7 <- mq_km7$cluster
+
+# reintroduce GEOID as column
+km$GEOID <- c(row.names(km))
+# reset index
+rownames(km) <- NULL
+km <- km %>%
+  dplyr::select(GEOID, everything())
+
+# make table of class counts
+# thw_km3 <- table(km$hw_km3)
+# thw_km4 <- table(km$hw_km4)
+# thw_km5 <- table(km$hw_km5)
+# thw_km6 <- table(km$hw_km6)
+# thw_km7 <- table(km$hw_km7)
+# tll_km3 <- table(km$ll_km3)
+tll_km4 <- table(km$ll_km4)
+# tll_km5 <- table(km$ll_km5)
+# tll_km6 <- table(km$ll_km6)
+# tll_km7 <- table(km$ll_km7)
+# tfg_km3 <- table(km$fg_km3)
+# tfg_km4 <- table(km$fg_km4)
+# tfg_km5 <- table(km$fg_km5)
+# tfg_km6 <- table(km$fg_km6)
+# tfg_km7 <- table(km$fg_km7)
+# tmq_km3 <- table(km$mq_km3)
+# tmq_km4 <- table(km$mq_km4)
+# tmq_km5 <- table(km$mq_km5)
+# tmq_km6 <- table(km$mq_km6)
+# tmq_km7 <- table(km$mq_km7)
+# 
+# # the second and fourth 4 clusters seem to be the best options--more clusters, but less overlap
+# km$cluster <- km$ll_km4 
+```
+
+```{r merge back Kmeans clusters to county dataset}
+geo_clust <- subset(km, select = c("GEOID", "cluster"))
+eviction_county_2010 <- merge(eviction_county_2010, geo_clust)
+eviction_county_2010$cluster <- as.character(eviction_county_2010$cluster)
+```
+
+```{r creating spatial datasets for state}
+
+# get Census TIGER shapefiles for state
+state_us_geo <- tigris::states(class= "sf")
+
+
+# add spatial data to the state level eviction data
+eviction_by_state <- state_us_geo %>% 
+                    left_join(eviction_state_2010, c("GEOID" = "GEOID"))
+            
+```
+
+```{r write csvs}
+write_csv(eviction_by_state,path = "./data/eviction_by_state.csv")
+write_csv(eviction_county_2010,path = "./data/eviction_county_2010.csv")
+```
 
 
 # Data Exploration
@@ -378,3 +542,9 @@ eviction_by_county <- eviction_county %>%
 
 eviction_by_county
 ```
+
+
+```{r}
+
+```
+
