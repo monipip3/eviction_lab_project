@@ -20,7 +20,6 @@ suppressMessages(library(stringr))
 suppressMessages(library(purrr))
 suppressMessages(library(gganimate))
 suppressMessages(library(readxl))
-suppressMessages(library(gifski))
 suppressMessages(library(tidycensus))
 suppressMessages(library(rvest))
 suppressMessages(library(tmap))
@@ -827,7 +826,6 @@ km <- km %>%
   column_to_rownames(., var = "GEOID")
 km_sc <- km
 # scale numerical data
-library(MASS)
 ind <- sapply(km_sc, is.numeric)
 km_sc[ind] <- lapply(km_sc[ind], scale)
 # determine optimal clusters 
@@ -840,7 +838,7 @@ fviz_nbclust(km_sc, kmeans, method = "silhouette") # 3
 # Compute k-means clustering
 # play around with methods and k amounts 
 set.seed(123)
-# Hartigan-Wong
+# # Hartigan-Wong
 hw_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Hartigan-Wong")
 hw_km4 <- kmeans(km_sc, 4, nstart = 25, algorithm = "Hartigan-Wong")
 hw_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "Hartigan-Wong")
@@ -851,61 +849,61 @@ fviz_cluster(hw_km4, data = km_sc)
 fviz_cluster(hw_km5, data = km_sc)
 fviz_cluster(hw_km6, data = km_sc)
 fviz_cluster(hw_km7, data = km_sc)
-# Lloyd
-ll_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Lloyd")
-ll_km4 <- kmeans(km_sc, 4, nstart = 25, algorithm = "Lloyd")
-ll_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "Lloyd")
-ll_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "Lloyd")
-ll_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "Lloyd")
-fviz_cluster(ll_km3, data = km_sc)
-fviz_cluster(ll_km4, data = km_sc)
-fviz_cluster(ll_km5, data = km_sc)
-fviz_cluster(ll_km6, data = km_sc)
-fviz_cluster(ll_km7, data = km_sc)
-# Forgy
-fg_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Forgy")
-fg_km4 <- kmeans(km_sc, 4, nstart = 25, algorithm = "Forgy")
-fg_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "Forgy")
-fg_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "Forgy")
-fg_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "Forgy")
-fviz_cluster(fg_km3, data = km_sc)
-fviz_cluster(fg_km4, data = km_sc)
-fviz_cluster(fg_km5, data = km_sc)
-fviz_cluster(fg_km6, data = km_sc)
-fviz_cluster(fg_km7, data = km_sc)
-# MacQueen
-mq_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "MacQueen")
-mq_km4 <- kmeans(km_sc, 4, nstart = 25 , algorithm = "MacQueen")
-mq_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "MacQueen")
-mq_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "MacQueen")
-mq_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "MacQueen")
-fviz_cluster(mq_km3, data = km_sc)
-fviz_cluster(mq_km4, data = km_sc)
-fviz_cluster(mq_km5, data = km_sc)
-fviz_cluster(mq_km6, data = km_sc)
-fviz_cluster(mq_km7, data = km_sc)
+# # Lloyd
+# ll_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Lloyd")
+# ll_km4 <- kmeans(km_sc, 4, nstart = 25, algorithm = "Lloyd")
+# ll_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "Lloyd")
+# ll_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "Lloyd")
+# ll_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "Lloyd")
+# fviz_cluster(ll_km3, data = km_sc)
+# fviz_cluster(ll_km4, data = km_sc)
+# fviz_cluster(ll_km5, data = km_sc)
+# fviz_cluster(ll_km6, data = km_sc)
+# fviz_cluster(ll_km7, data = km_sc)
+# # Forgy
+# fg_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Forgy")
+# fg_km4 <- kmeans(km_sc, 4, nstart = 25, algorithm = "Forgy")
+# fg_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "Forgy")
+# fg_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "Forgy")
+# fg_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "Forgy")
+# fviz_cluster(fg_km3, data = km_sc)
+# fviz_cluster(fg_km4, data = km_sc)
+# fviz_cluster(fg_km5, data = km_sc)
+# fviz_cluster(fg_km6, data = km_sc)
+# fviz_cluster(fg_km7, data = km_sc)
+# # MacQueen
+# mq_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "MacQueen")
+# mq_km4 <- kmeans(km_sc, 4, nstart = 25 , algorithm = "MacQueen")
+# mq_km5 <- kmeans(km_sc, 5, nstart = 25, algorithm = "MacQueen")
+# mq_km6 <- kmeans(km_sc, 6, nstart = 25, algorithm = "MacQueen")
+# mq_km7 <- kmeans(km_sc, 7, nstart = 25, algorithm = "MacQueen")
+# fviz_cluster(mq_km3, data = km_sc)
+# fviz_cluster(mq_km4, data = km_sc)
+# fviz_cluster(mq_km5, data = km_sc)
+# fviz_cluster(mq_km6, data = km_sc)
+# fviz_cluster(mq_km7, data = km_sc)
  
 # Extract clusters and add to data frame
-km$hw_km3 <- hw_km3$cluster 
-km$hw_km4 <- hw_km4$cluster 
-km$hw_km5 <- hw_km5$cluster 
-km$hw_km6 <- hw_km6$cluster 
-km$hw_km7 <- hw_km7$cluster 
-km$ll_km3 <- ll_km3$cluster
-km$ll_km4 <- ll_km4$cluster
-km$ll_km5 <- ll_km5$cluster
-km$ll_km6 <- ll_km6$cluster
-km$ll_km7 <- ll_km7$cluster
-km$fg_km3 <- fg_km3$cluster
-km$fg_km4 <- fg_km4$cluster
-km$fg_km5 <- fg_km5$cluster
-km$fg_km6 <- fg_km6$cluster
-km$fg_km7 <- fg_km7$cluster
-km$mq_km3 <- mq_km3$cluster
-km$mq_km4 <- mq_km4$cluster
-km$mq_km5 <- mq_km5$cluster
-km$mq_km6 <- mq_km6$cluster
-km$mq_km7 <- mq_km7$cluster
+km$hw_km3 <- hw_km3$cluster
+km$hw_km4 <- hw_km4$cluster
+km$hw_km5 <- hw_km5$cluster
+km$hw_km6 <- hw_km6$cluster
+km$hw_km7 <- hw_km7$cluster
+# km$ll_km3 <- ll_km3$cluster
+# km$cluster <- ll_km4$cluster
+# km$ll_km5 <- ll_km5$cluster
+# km$ll_km6 <- ll_km6$cluster
+# km$ll_km7 <- ll_km7$cluster
+# km$fg_km3 <- fg_km3$cluster
+# km$fg_km4 <- fg_km4$cluster
+# km$fg_km5 <- fg_km5$cluster
+# km$fg_km6 <- fg_km6$cluster
+# km$fg_km7 <- fg_km7$cluster
+# km$mq_km3 <- mq_km3$cluster
+# km$mq_km4 <- mq_km4$cluster
+# km$mq_km5 <- mq_km5$cluster
+# km$mq_km6 <- mq_km6$cluster
+# km$mq_km7 <- mq_km7$cluster
 
 # reintroduce GEOID as column
 km$GEOID <- c(row.names(km))
@@ -920,67 +918,67 @@ thw_km4 <- table(km$hw_km4)
 thw_km5 <- table(km$hw_km5)
 thw_km6 <- table(km$hw_km6)
 thw_km7 <- table(km$hw_km7)
-tll_km3 <- table(km$ll_km3)
-tll_km4 <- table(km$ll_km4)
-tll_km5 <- table(km$ll_km5)
-tll_km6 <- table(km$ll_km6)
-tll_km7 <- table(km$ll_km7)
-tfg_km3 <- table(km$fg_km3)
-tfg_km4 <- table(km$fg_km4)
-tfg_km5 <- table(km$fg_km5)
-tfg_km6 <- table(km$fg_km6)
-tfg_km7 <- table(km$fg_km7)
-tmq_km3 <- table(km$mq_km3)
-tmq_km4 <- table(km$mq_km4)
-tmq_km5 <- table(km$mq_km5)
-tmq_km6 <- table(km$mq_km6)
-tmq_km7 <- table(km$mq_km7)
+# tll_km3 <- table(km$ll_km3)
+# tll_km4 <- table(km$cluster)
+# tll_km5 <- table(km$ll_km5)
+# tll_km6 <- table(km$ll_km6)
+# tll_km7 <- table(km$ll_km7)
+# tfg_km3 <- table(km$fg_km3)
+# tfg_km4 <- table(km$fg_km4)
+# tfg_km5 <- table(km$fg_km5)
+# tfg_km6 <- table(km$fg_km6)
+# tfg_km7 <- table(km$fg_km7)
+# tmq_km3 <- table(km$mq_km3)
+# tmq_km4 <- table(km$mq_km4)
+# tmq_km5 <- table(km$mq_km5)
+# tmq_km6 <- table(km$mq_km6)
+# tmq_km7 <- table(km$mq_km7)
 
 # the second and fourth 4 clusters seem to be the best options--more clusters, but less overlap
-km$cluster <- km$ll_km4 
+# km$cluster <- km$ll_km4 
 ```
 
 ```{r cluster_eda}
 geo_clust <- subset(km, select = c("GEOID", "cluster"))
-ecp_cl <- merge(eviction_county_2010, geo_clust)
-ecp_cl$cluster <- as.character(ecp_cl$cluster)
+eviction_county_2010 <- merge(eviction_county_2010, geo_clust)
+eviction_county_2010$cluster <- as.character(eviction_county_2010$cluster)
 
 # box plots
-ggplot(data = ecp_cl, mapping = aes(x = cluster, y = poverty_rate)) +
+ggplot(data = eviction_county_2010, mapping = aes(x = cluster, y = poverty_rate)) +
   geom_boxplot() +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "Povery Rate by Cluster")
-ggplot(data = ecp_cl, mapping = aes(x = cluster, y = pct_nonwhite)) +
+ggplot(data = eviction_county_2010, mapping = aes(x = cluster, y = pct_nonwhite)) +
   geom_boxplot() +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "% Nonwhite by Cluster")
-ggplot(data = ecp_cl, mapping = aes(x = cluster, y = pct_white)) +
+ggplot(data = eviction_county_2010, mapping = aes(x = cluster, y = pct_white)) +
   geom_boxplot() +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "% White by Cluster")
-ggplot(data = ecp_cl, mapping = aes(x = cluster, y = pct_renter_occupied)) +
+ggplot(data = eviction_county_2010, mapping = aes(x = cluster, y = pct_renter_occupied)) +
   geom_boxplot() +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "% Renter Occupied Rate by Cluster")
-ggplot(data = ecp_cl, mapping = aes(x = cluster, y = median_household_income)) +
+ggplot(data = eviction_county_2010, mapping = aes(x = cluster, y = median_household_income)) +
   geom_boxplot() +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "Median Household Income by Cluster")
-ggplot(data = ecp_cl, mapping = aes(x = cluster, y = median_gross_rent)) +
+ggplot(data = eviction_county_2010, mapping = aes(x = cluster, y = median_gross_rent)) +
   geom_boxplot() +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "Median Gross Rent by Cluster")
-ggplot(data = ecp_cl, mapping = aes(x = cluster, y = rent_burden)) +
+ggplot(data = eviction_county_2010, mapping = aes(x = cluster, y = rent_burden)) +
   geom_boxplot() +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "Rent Burden by Cluster")
-ggplot(data = ecp_cl, mapping = aes(x = cluster, y = Percent_Rural)) +
+ggplot(data = eviction_county_2010, mapping = aes(x = cluster, y = Percent_Rural)) +
   geom_boxplot() +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "Rural Percent by Cluster")
 
 # stacked bar chart of region in each cluster 
-ecp_cl %>%
+eviction_county_2010 %>%
   filter(!(is.na(region))) %>%
   ggplot(aes(cluster)) + 
   geom_bar(aes(fill=region), position="fill") + 
