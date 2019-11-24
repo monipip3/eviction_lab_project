@@ -385,8 +385,10 @@ state_us_geo <- tigris::states(class= "sf")
 
 
 # add spatial data to the state level eviction data
-eviction_by_state <- state_us_geo %>% 
-                    left_join(eviction_state_2010, c("GEOID" = "GEOID"))
+
+eviction_by_state <- eviction_state_2010 %>%
+                    left_join(state_us_geo, c("GEOID" = "GEOID")) %>%
+                    dplyr::select(-LSAD, -MTFCC, -FUNCSTAT, -STUSPS, -STATENS)
             
 ```
 
