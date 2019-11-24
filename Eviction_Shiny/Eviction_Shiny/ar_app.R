@@ -95,9 +95,15 @@ server <- function(input, output, session) {
   #   # sim_cty <- sample(simil_ctys, 5)
   #   # sim_cty <- append(sel_geoid, simil_ctys)
   
+  z <- reactive({filter(eviction_county_2010,parent_location == input$state & name == input$county)%>% 
+    select(cluster) %>%unique() %>% pull()})
+  
+  
+  
   output$table <- renderTable(
     eviction_county_2010 %>% 
       group_by(County) %>% 
+      filter(cluster==z()) %>%
       summarise_at(c("GEOID", "population", "cluster", "poverty_rate", "unemployment_rate", "pct_renter_occupied",  
                      "Percent_Rural", "median_gross_rent", "median_household_income", 
                      "median_property_value", "rent_burden", "pct_white", "pct_nonwhite", 
@@ -111,7 +117,8 @@ server <- function(input, output, session) {
              `% African American` = pct_af_am, `% Hispanic` = pct_hispanic, `% American Indian` = pct_am_ind, 
              `% Asian` = pct_asian, 
              `% Native Hawaiian/Pacific Islander` = pct_nh_pi, `% Multiple` = pct_multiple, `% Other` = pct_other) # %>%
-      # filter(County == str_c(input$county, input$state, sep = ", "))
+      #filter(cluster==y) 
+      #filter(County == str_c(input$county, input$state, sep = ", "))
   )
 }
 
