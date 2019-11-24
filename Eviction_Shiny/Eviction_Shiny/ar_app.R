@@ -10,8 +10,8 @@ library(datasets)
 library(lubridate)
 library(stringr)
 
-# zip <- "./data_shiny/data.zip"
-# unzip(zip, overwrite = FALSE)
+zip <- "./data_shiny/data.zip"
+unzip(zip, overwrite = FALSE)
 eviction_county_2010 <- read.csv("./eviction_county_2010.csv")
 eviction_by_state <- read_csv("./eviction_by_state.csv")
 
@@ -78,40 +78,60 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  # ec <- eviction_county_2010 %>%
+  #   filter(parent_location == input$state) %>%
+  #   filter(name == input$county)
+  # sel_clust <- c(unique(ec$cluster))
+  # sel_geoid <- c(unique(ec$GEOID))
+  # sim_cty <- eviction_county_2010 %>% filter(cluster == sel_clust | GEOID != sel_geoid)
+  # sim_cty <- unique(sim_cty$GEOID)
+  # sim_cty <- sample(sim_cty, 5)
+  # sim_cty <- append(sel_geoid, sim_cty)
+  
   observe({
     x <- filter(eviction_county_2010,parent_location == input$state) %>%
       select(name)
     updateSelectInput(session,"county","Select a County:",choices = unique(x))}
   )
   
-  # ec <- reactive({
-    # ec <- eviction_county_2010 %>%
-    #   filter(parent_location == input$state) %>%
-    #   filter(name == input$county)
-    # sel_clust <- c(unique(ec$cluster))
-    # sel_geoid <- c(unique(ec$GEOID))
-    # sim_cty <- eviction_county_2010 %>% filter(cluster == sel_clust | GEOID != sel_geoid)
-  #   # sim_cty <- unique(simil_ctys$GEOID)
-  #   # sim_cty <- sample(simil_ctys, 5)
-  #   # sim_cty <- append(sel_geoid, simil_ctys)
+  # ec <- eviction_county_2010 %>%
+  #   filter(parent_location == input$state) %>%
+  #   filter(name == input$county)
+  # sel_clust <- c(unique(ec$cluster))
+  # sel_geoid <- c(unique(ec$GEOID))
+  # sim_cty <- eviction_county_2010 %>% filter(cluster == sel_clust | GEOID != sel_geoid)
+  # sim_cty <- unique(simil_ctys$GEOID)
+  # sim_cty <- sample(simil_ctys, 5)
+  # sim_cty <- append(sel_geoid, simil_ctys)
+  
+  # sim_cty <- reactive({ec <- eviction_county_2010 %>%
+  #   filter(parent_location == input$state) %>%
+  #   filter(name == input$county)
+  # sel_clust <- c(unique(ec$cluster))
+  # sel_geoid <- c(unique(ec$GEOID))
+  # sim_cty <- eviction_county_2010 %>% filter(cluster == sel_clust | GEOID != sel_geoid)
+  # sim_cty <- unique(sim_cty$GEOID)
+  # sim_cty <- sample(sim_cty, 5)
+  # sim_cty <- append(sel_geoid, sim_cty)})
   
   output$table <- renderTable(
     eviction_county_2010 %>% 
-      group_by(County) %>% 
-      summarise_at(c("GEOID", "population", "cluster", "poverty_rate", "unemployment_rate", "pct_renter_occupied",  
-                     "Percent_Rural", "median_gross_rent", "median_household_income", 
-                     "median_property_value", "rent_burden", "pct_white", "pct_nonwhite", 
-                     "pct_af_am", "pct_hispanic", "pct_am_ind", "pct_asian", 
-                     "pct_nh_pi", "pct_multiple", "pct_other"), mean, na.rm = TRUE) %>% 
-      rename(Population = population, `Poverty Rate` = poverty_rate, 
-             `Unemployment Rate` = unemployment_rate, `% Renter Occupied` = pct_renter_occupied,  
-             `% Rural` = Percent_Rural, `Median Gross Rent` = median_gross_rent, `Median Household Income` = median_household_income, 
-             `Median Property Value` = median_property_value, `Rent Burden` = rent_burden, 
-             `% White` = pct_white, `% Non White` = pct_nonwhite, 
-             `% African American` = pct_af_am, `% Hispanic` = pct_hispanic, `% American Indian` = pct_am_ind, 
-             `% Asian` = pct_asian, 
-             `% Native Hawaiian/Pacific Islander` = pct_nh_pi, `% Multiple` = pct_multiple, `% Other` = pct_other) # %>%
-      # filter(County == str_c(input$county, input$state, sep = ", "))
+      filter(GEOID %in% sim_cty)
+      # group_by(County) %>% 
+      # summarise_at(c("GEOID", "population", "cluster", "poverty_rate", "unemployment_rate", "pct_renter_occupied",  
+      #                "Percent_Rural", "median_gross_rent", "median_household_income", 
+      #                "median_property_value", "rent_burden", "pct_white", "pct_nonwhite", 
+      #                "pct_af_am", "pct_hispanic", "pct_am_ind", "pct_asian", 
+      #                "pct_nh_pi", "pct_multiple", "pct_other"), mean, na.rm = TRUE) %>% 
+      # rename(Population = population, `Poverty Rate` = poverty_rate, 
+      #        `Unemployment Rate` = unemployment_rate, `% Renter Occupied` = pct_renter_occupied,  
+      #        `% Rural` = Percent_Rural, `Median Gross Rent` = median_gross_rent, `Median Household Income` = median_household_income, 
+      #        `Median Property Value` = median_property_value, `Rent Burden` = rent_burden, 
+      #        `% White` = pct_white, `% Non White` = pct_nonwhite, 
+      #        `% African American` = pct_af_am, `% Hispanic` = pct_hispanic, `% American Indian` = pct_am_ind, 
+      #        `% Asian` = pct_asian, 
+      #        `% Native Hawaiian/Pacific Islander` = pct_nh_pi, `% Multiple` = pct_multiple, `% Other` = pct_other) # %>%
+      # # filter(County == str_c(input$county, input$state, sep = ", "))
   )
 }
 
