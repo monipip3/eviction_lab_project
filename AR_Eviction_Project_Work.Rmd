@@ -261,11 +261,15 @@ summary(eviction_county)
 glimpse(eviction_county)
 ```
 
-```{r gganimate eviction for state, eval=FALSE}
+```{r gganimate eviction for state}
+
 # look at eviction rate over time per state -- create gganimate
 # this needs to have better formatting for final.
+
+eviction_state$fact_name <- factor(eviction_state$name, levels=rev(unique(eviction_state$name)))
+
 eviction_state %>%
-  ggplot(aes(x = eviction_filing_rate, y = name)) +
+  ggplot(aes(x = eviction_filing_rate, y = fact_name)) +
   geom_point(aes(size = population, fill = rent_burden),
              shape = 21) +
   scale_x_log10(breaks = 2^(-1:7)*1000) +
@@ -278,6 +282,46 @@ eviction_state %>%
           subtitle = "Frame {frame} of {nframes}")+
   theme_bw()
 ```
+
+```{r gganimate eviction for county}
+
+# look at eviction rate over time per top 25 counties -- create gganimate
+# this needs to have better formatting for final.
+
+# get top 25 counties with highest average evistion rate
+county_top25_eviction <- eviction_county %>%
+  group_by(GEOID) %>%
+  summarise(
+    avg_rate = mean(eviction_filing_rate, na.rm = TRUE)
+  ) %>%
+  top_n(25) %>%
+  arrange(desc(avg_rate))
+
+top25_counties <- county_top25_eviction %>%
+  left_join(eviction_county, by = "GEOID") %>%
+  dplyr::select(everything())
+
+top25_counties
+
+top25_counties$full_name <- str_c(tools::toTitleCase(top25_counties$name), top25_counties$parent_location, sep = ", ")
+top25_counties <- top25_counties[order(top25_counties$full_name),]
+top25_counties$full_name <- factor(top25_counties$full_name, levels=rev(unique(top25_counties$full_name)))
+
+top25_counties %>%
+  ggplot(aes(x = eviction_filing_rate, y = full_name)) +
+  geom_point(aes(size = population, fill = rent_burden),
+             shape = 21) +
+  scale_x_log10(breaks = 2^(-1:7)*1000) +
+  scale_size(range = c(1, 20), guide = FALSE) +
+  labs(x = "Eviction Filing Rate",
+       y = "County") +
+  transition_states(year, transition_length = 1,
+                    state_length = 1)+
+  ggtitle("Year showing {closest_state}",
+          subtitle = "Frame {frame} of {nframes}")+
+  theme_bw()
+```
+
 
 # Set up Spatial Datasets for Mapping
 ```{r set up spatial datasets, eval=FALSE}
@@ -517,7 +561,7 @@ dense_plot_demos <- function(df, id_list, demog, color_id, demo_name, qual) {
   xlab(demo_name) + 
   ylab("Density") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = paste(demo_name, "in", qual, "Filing Counties"))
+  labs(title = paste(demo_name, "in", qual, "Filing Counties")) 
 }
 
 top_pov <- dense_plot_demos(ecplot, top_lists, "poverty_rate", color_pal[1], "Poverty Rate", "Highest")
