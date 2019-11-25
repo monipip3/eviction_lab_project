@@ -15,6 +15,7 @@ library(tidyverse)
 library(sf)
 library(spatialEco)
 library(tigris)
+library(sp)
 
 # load in csv files
 
@@ -29,7 +30,7 @@ state_us_geo <- tigris::states(class= "sf")
 
 spatial_state <- as_Spatial(state_us_geo)
 
-state_eviction <- merge(spatial_state, eviction_by_state, by = c("GEOID" = "GEOID"), duplicateGeoms = TRUE)
+state_eviction <- sp::merge(spatial_state, eviction_by_state, by = c("GEOID" = "GEOID"), duplicateGeoms = TRUE)
 
 state_eviction <- sp.na.omit(state_eviction, margin = 1)
 
