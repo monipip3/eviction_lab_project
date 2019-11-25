@@ -37,10 +37,11 @@ suppressMessages(library(cluster))
 suppressMessages(library(RColorBrewer))
 suppressMessages(library(MASS))
 suppressMessages(library(leaflet))
-suppressMessages(library(rgdal))
 
 
-install.packages("rgdal")
+install.packages("spatialEco")
+library(spatialEco)
+
 ```
 
 # Introduction
@@ -390,28 +391,15 @@ eviction_county_2010 <- merge(eviction_county_2010, geo_clust)
 eviction_county_2010$cluster <- as.character(eviction_county_2010$cluster)
 ```
 
-```{r creating spatial datasets for state}
-
-# get Census TIGER shapefiles for state
-state_us_geo <- tigris::states(class= "sf")
-
-
-# add spatial data to the state level eviction data
-eviction_by_state <- eviction_state_2010 %>% 
-                    left_join(state_us_geo, c("GEOID" = "GEOID")) %>%
-                    dplyr::select(-LSAD, -MTFCC, -FUNCSTAT, -STUSPS, -STATENS)
-
-# try spatial join
-eviction_by_state
-
-            
-```
-
 
 ```{r write csvs}
-write_csv(eviction_by_state,path = "./data/eviction_by_state.csv")
+setwd("~/Documents/GitHub/eviction_lab_project/Eviction_Shiny/Eviction_Shiny")
+
+write_csv(eviction_state_2010,path = "./eviction_state_2010.csv")
 write_csv(eviction_county_2010,path = "./data/eviction_county_2010.csv")
 
+
+getwd()
 ```
 
 
@@ -496,12 +484,12 @@ eviction_county %>%
 
 # look at dataset
 
-names(eviction_state)
+names(eviction_state_2010)
 
 summary(eviction_state)
 
 # look at 2016 
-eviction_state %>%
+eviction_state_2010 %>%
   filter(year == 2016) %>%
   ggplot(aes(x = name, y = `poverty-rate`)) +
   geom_bar(stat = 'identity') +
@@ -527,7 +515,7 @@ glimpse(eviction_county)
 # look at eviction rate over time per state -- create gganimate
 # this needs to have better formatting for final.
 
-eviction_state %>%
+eviction_state_2010 %>%
   ggplot(aes(x = eviction_filing_rate, y = name)) +
   geom_point(aes(size = population, fill = rent_burden),
              shape = 21) +
@@ -544,19 +532,21 @@ eviction_state %>%
 
 # Set up Spatial Datasets for Mapping
 ```{r set up spatial datasets}
+## DONT THINK THESE ARE NEEDED
 
 # get Census TIGER shapefiles for state
 state_us_geo <- tigris::states(class= "sf")
 
 
 # add spatial data to the state level eviction data
-eviction_by_state <- eviction_state %>%
-                      left_join(us_geo, c("GEOID" = "GEOID"))
+eviction_by_state <- eviction_state_2010 %>%
+                      left_join(state_us_geo, c("GEOID" = "GEOID"))
 
+getwd()
 eviction_by_state
 
 # add spatial data to the county level eviction data
-eviction_by_county <- eviction_county %>%
+eviction_by_county <- eviction_county_2010 %>%
                       left_join(county_boundaries, c("GEOID" = "GEOID"))
 
 eviction_by_county 
@@ -564,15 +554,37 @@ eviction_by_county
 
 
 ```{r}
+eviction_state_2010 <- read_csv("./eviction_state_2010.csv")
+
+eviction_state_2010
 
 spatial_state <- as_Spatial(state_us_geo)
 
-state_eviction <- merge(spatial_state, eviction_state_2010, by = "GEOID", duplicateGeoms = TRUE)
+df <- as.data.frame(spatial_state)
+df
+state_eviction <- merge(spatial_state, eviction_state_2010, by = c("GEOID" = "GEOID"), duplicateGeoms = TRUE)
                         
 state_eviction
 
-purPal <- colorQuantile("PuBuGn", domain = state_eviction$eviction_filing_rate, n = 6)
-blugr <- colorQuantile("YlGnBu", domain = state_eviction$pct_renter_occupied, n = 6)
+df2 <- as.data.frame(state_eviction)
+df2 %>%
+  filter(GEOID == '51' | GEOID == "39") %>%
+  filter(year == 2010)
+
+state_eviction2 <- sp.na.omit(state_eviction, margin = 1)
+state_eviction2[state_eviction2$year == "2010", ]
+
+test <- subset(state_eviction2, state_eviction2$year == 2010)
+as.data.frame(test)
+
+state_eviction2df <- as.data.frame(state_eviction2)
+state_eviction2df
+```
+
+
+```{r}
+purPal <- colorQuantile("PuBuGn", domain = state_eviction$eviction_filing_rate, n = 4)
+blugr <- colorBin("YlGnBu", domain = state_eviction$pct_renter_occupied, n = 6)
 
  
 popup_evic <- paste0("<strong>", state_eviction$name,
@@ -604,7 +616,7 @@ map_maker <- function(x){
              title = "Percent Renter Occupied") }
 }
   
-x <- "Percent Renter Occupied"
+x <- "Eviction Filing Rates"
 map_maker(x)
 
 ```
@@ -628,15 +640,32 @@ names(state_eviction$pct_renter_occupied)
 spatial_colnames <- as.data.frame(state_eviction)
  
 spatial_colnames %>%
-  arrange(name, year)
- 
+  dplyr::select(NAME, eviction_filing_rate, everything()) %>%
+  filter (is.na(eviction_filing_rate))
+
+table(is.na(spatial_colnames)) 
+
 state_eviction
 
 is.na(state_eviction$year)
-# test
-poverty <- state_eviction %>%
-          dplyr::select(poverty_rate)
 
 
+eviction_by_state <- read_csv("./eviction_state_2010.csv")
+eviction_by_state
+state_us_geo <- tigris::states(class= "sf")
+
+spatial_state <- as_Spatial(state_us_geo)
+
+state_eviction <- merge(spatial_state, eviction_by_state, by = "GEOID", duplicateGeoms = TRUE)
+
+
+setwd("~/Documents/GitHub/eviction_lab_project/Eviction_Shiny/Eviction_Shiny")
 ```
 
+```{r}
+
+state_eviction_NoNAs <- sp.na.omit(state_eviction, margin = 1)
+
+view_noNoas <- as.data.frame(state_eviction_NoNAs)
+view_noNoas
+```

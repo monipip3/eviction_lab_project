@@ -14,6 +14,7 @@ library(lubridate)
 library(tidyverse)
 library(shiny)
 library(sf)
+library(spatialEco)
 
 # load in csv files
 
