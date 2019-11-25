@@ -22,7 +22,7 @@ library(sf)
 #unzip(data, overwrite = FALSE)
 
 # read in csv 
-eviction_by_state <- read_csv("./eviction_state_2010.csv")
+eviction_by_state <- read_csv("./eviction_state_2010.csv") 
 
 state_us_geo <- tigris::states(class= "sf")
 
