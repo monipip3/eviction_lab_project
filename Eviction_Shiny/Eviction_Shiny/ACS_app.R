@@ -12,9 +12,9 @@ library(leaflet)
 library(shiny)
 library(lubridate)
 library(tidyverse)
-library(shiny)
 library(sf)
 library(spatialEco)
+library(tigris)
 
 # load in csv files
 
@@ -33,23 +33,23 @@ state_eviction <- merge(spatial_state, eviction_by_state, by = c("GEOID" = "GEOI
 
 state_eviction <- sp.na.omit(state_eviction, margin = 1)
 
-purPal <- colorQuantile("PuBuGn", domain = state_eviction$eviction_filing_rate, n = 6)
-blugr <- colorQuantile("YlGnBu", domain = state_eviction$pct_renter_occupied, n = 6)
-
-
-popup_evic <- paste0("<strong>", state_eviction$name,
-                     "<strong><br />Median HH Income: <strong>", state_eviction$median_household_income)
 
 map_maker <- function(x, y){
+  purPal <- colorQuantile("PuBuGn", domain = y$eviction_filing_rate, n = 6)
+  blugr <- colorQuantile("YlGnBu", domain = y$pct_renter_occupied, n = 6)
+  
+  popup_evic <- paste0("<strong>", y$name,
+                       "<strong><br />Median HH Income: <strong>", y$median_household_income)
+  
   if (x == "Eviction Filing Rate") {
     leaflet() %>% 
       setView(-98.483330, 38.712046, zoom = 3) %>%
       addProviderTiles(providers$CartoDB.Positron) %>%
-      addPolygons(data = y, fillColor = ~purPal(state_eviction$eviction_filing_rate), 
+      addPolygons(data = y, fillColor = ~purPal(y$eviction_filing_rate), 
                   smoothFactor = 0.2, fillOpacity = .7, weight = 0.2,
                   popup = ~popup_evic) %>%
       addLegend(purPal,
-                values = state_eviction$eviction_filing_rate,
+                values = y$eviction_filing_rate,
                 position = "bottomleft",
                 title = "Eviction Filing <br/ > Rates")
   }else{
@@ -57,11 +57,11 @@ map_maker <- function(x, y){
       setView(lng = -93.85, lat = 37.45, zoom = 3) %>%
       addProviderTiles(providers$CartoDB.Positron) %>%
       addPolygons(data = y, 
-                  fillColor = ~blugr(state_eviction$pct_renter_occupied),
+                  fillColor = ~blugr(y$pct_renter_occupied),
                   smoothFactor = 0.2, fillOpacity = .7, weight = 0.2,
                   popup = ~popup_evic) %>%
       addLegend(blugr,
-                values = state_eviction$pct_renter_occupied,
+                values = y$pct_renter_occupied,
                 position = "bottomleft",
                 title = "Percent Renter Occupied") }}
  
@@ -102,9 +102,6 @@ map_maker <- function(x, y){
       
     })
         
-      
-      
-    
     output$map <- renderLeaflet({
       
       leaflet() %>% 
