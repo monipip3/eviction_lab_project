@@ -486,10 +486,10 @@ ggplot(aes(pct_pop_change,eviction_filing_rate.x,color=region)) +
 
 
 ```{r pct change bar graph top 50 counties}
-left_join(pct_pop_change_county,eviction_county, by ="GEOID") %>%
-  filter(year.y > 2009) %>%
-  select(pct_pop_change,eviction_filing_rate.x,region.x,name) %>%
-  group_by(region.x,name) %>%
+left_join(pct_pop_change_county,eviction_county_2010, by ="GEOID") %>%
+  #filter(year.y > 2009) %>%
+  dplyr::select(pct_pop_change,eviction_filing_rate,region,name) %>%
+  group_by(region,name) %>%
   summarise_all(mean,na.rm=TRUE) %>%
   arrange(desc(eviction_filing_rate.x)) %>%
   head(50) %>%
@@ -498,3 +498,24 @@ left_join(pct_pop_change_county,eviction_county, by ="GEOID") %>%
   theme_minimal() +
   scale_fill_brewer(palette = "Spectral")
 ```
+
+
+
+
+```{r}
+dplyr::select(eviction_county_2010, parent_location,eviction_filing_rate, year,region) %>%
+  filter(year > 2010) %>% #have to have even amount of years
+  na.omit() %>%
+  mutate(year_bin = ifelse(year > 2014,"y2014_2016","y2011_2013")) %>%
+  dplyr::select(parent_location,year_bin, eviction_filing_rate,region) %>%
+  group_by(parent_location,year_bin,region) %>%
+  summarise_all(mean,na.rm=TRUE) %>%
+  pivot_wider(names_from = "year_bin",values_from = "eviction_filing_rate") %>%
+  mutate(delta = y2014_2016 - y2011_2013) %>%
+  ggplot(aes(parent_location,delta,fill=region)) +
+  geom_bar(stat="identity") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Spectral") +
+  ggtitle("Average Eviction Delta of 2014-2016 vs 2011-2013")
+```
+
