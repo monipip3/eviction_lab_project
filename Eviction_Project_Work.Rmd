@@ -45,18 +45,18 @@ suppressMessages(library(MASS))
 # Data Downloads
 ```{r download data - eviction dataset}
 
-# # set up a data directory if it does not exist already
-# if(!file.exists("./data")) {dir.create("./data")}
-# 
-# # store urls needed - right click on excel symbol and select 
-# # copy link address
-# eviction_US_all <- c("https://eviction-lab-data-downloads.s3.amazonaws.com/US/all.csv")
-# 
-# # check to see if URL saved to variable
-# eviction_US_all
-# 
-# #download the csv file
-# download.file(eviction_US_all, destfile = "./data/eviction_US_all.csv", mode = "wb") #this takes a bit ranges from 2-5 minutes, over bad WIFI might take 10 min
+# set up a data directory if it does not exist already
+if(!file.exists("./data")) {dir.create("./data")}
+
+# store urls needed - right click on excel symbol and select
+# copy link address
+eviction_US_all <- c("https://eviction-lab-data-downloads.s3.amazonaws.com/US/all.csv")
+
+# check to see if URL saved to variable
+eviction_US_all
+
+#download the csv file
+download.file(eviction_US_all, destfile = "./data/eviction_US_all.csv", mode = "wb") #this takes a bit ranges from 2-5 minutes, over bad WIFI might take 10 min
 
 # read the csv file into R and save into dataframe
 eviction_US_all <- read_csv("./data/eviction_US_all.csv")
