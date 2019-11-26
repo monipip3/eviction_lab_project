@@ -123,11 +123,11 @@ server <- function(input, output, session) {
       }
     )
   
-  x <- reactive({
+  y <- reactive({
     subset(state_eviction, state_eviction$year == input$year)
   })
   
-  y <- reactive({
+  x <- reactive({
     input$layer
   })
   
