@@ -36,6 +36,7 @@ suppressMessages(library(factoextra))
 suppressMessages(library(cluster))
 suppressMessages(library(RColorBrewer))
 suppressMessages(library(MASS))
+suppressMessages(library(ggcorrplot))
 ```
 
 # Intro
@@ -61,7 +62,7 @@ download.file(eviction_US_all, destfile = "./data/eviction_US_all.csv", mode = "
 # read the csv file into R and save into dataframe
 eviction_US_all <- read_csv("./data/eviction_US_all.csv")
 
-#replacing "-" in column names 
+#replacing "-" in column names
 names(eviction_US_all) <- gsub(x = names(eviction_US_all), pattern = "-", replacement = "_")  
 ```
 
@@ -72,7 +73,7 @@ names(eviction_US_all) <- gsub(x = names(eviction_US_all), pattern = "-", replac
 # set up a data directory if it does not exist already
 if(!file.exists("./data")) {dir.create("./data")}
 
-# store urls needed - right click on excel symbol and select 
+# store urls needed - right click on excel symbol and select
 # copy link address
 urban_rural <- c("http://www2.census.gov/geo/docs/reference/ua/County_Rural_Lookup.xlsx")
 
@@ -88,13 +89,13 @@ urban_rural <- read_excel(skip = 3, "./data/urban_rural.xlsx")
 # clean data set
 urban_rural <- urban_rural %>%
   rename("Percent_Rural" = "2010 Census \r\nPercent Rural",
-         "GEOID" = "2015 GEOID") 
+         "GEOID" = "2015 GEOID")
 
 
 # create Rural Flag where Ruran Percentage is greater than 50%
 urban_rural <-urban_rural %>%
   mutate(rural_flag = ifelse(round(Percent_Rural, 3) > 50, 1, 0)) %>%
-  dplyr::select(GEOID, State, Percent_Rural, rural_flag) 
+  dplyr::select(GEOID, State, Percent_Rural, rural_flag)
 
 ```
 
@@ -108,8 +109,8 @@ url <- "https://www.bls.gov/lau/#tables"
 download.file(url,destfile="./data/uslabor.html")
 us_county_labor_html <- read_html("./data/uslabor.html")
 
-#extract the xslx 
-us_county_labor_html %>% 
+#extract the xslx
+us_county_labor_html %>%
    rvest::html_nodes("ul") %>%
         rvest::html_nodes("li") %>%
         rvest::html_nodes("a") %>%
@@ -140,7 +141,7 @@ read_files <- function(x){
 read_excel(path= paste("./data/labor_data/",x,sep=""),skip = 7,col_names = c("laus_code","state_fips_code","county_fips_code","county_name","year","","labor_force","employed","unemployed","unemployment_rate"),sheet = 1,na="")
 }
 
-#map the function to read each file 
+#map the function to read each file
 map(labor_files,read_files) -> all_labor_data
 
 #join all the US labor tables
@@ -152,13 +153,13 @@ filter(all_labor_data,!is.na(year)) %>% dplyr::select(-6) -> all_labor_data
 
 
 ``` {r small data transformations}
- 
-#creating a GEOID to join 
+
+#creating a GEOID to join
 all_labor_data$GEOID <- str_c(all_labor_data$state_fips_code,all_labor_data$county_fips_code)
- 
+
 #change year to integer
 all_labor_data$year <- as.integer(all_labor_data$year)
- 
+
 ```
 
 
@@ -184,32 +185,36 @@ county_boundaries <- st_read("./data/spatial/county_shp/cb_2018_us_county_500k.s
 #County Table joined with 2 additional variables : rural flag and unemployment rate
 
 eviction_county <- eviction_US_all %>%
-  right_join(urban_rural, key = "GEOID") %>% 
+  right_join(urban_rural, key = "GEOID") %>%
   left_join(dplyr::select(all_labor_data,GEOID,year,unemployment_rate), by =c("GEOID" = "GEOID", "year"="year"))
-         
+
 ```
 
 ```{r make state dataset}
 
 eviction_state <- eviction_US_all %>%
   filter(nchar(GEOID) == 2)
-         
+
 
 ```
 
 ```{r make region column,warning=FALSE}
-states_regions <- as.data.frame(cbind(state.name,levels(state.region)))#creating state and region table
-names(states_regions) <- c("states","region")
-  
+states_regions <- as.data.frame(cbind("states"= state.name,"region"=state.region))#creating state and region table
+#names(states_regions) <- c("states","region")
+#recode regions
+region_names <- c("1" = "Northeast", "2" = "South", "3" = "North Central","4"="West")
+recode(states_regions$region, !!!region_names) -> states_regions$region
+
 left_join(eviction_state, states_regions, by = c("name"="states")) -> eviction_state
 
 left_join(eviction_county, states_regions,by = c("parent_location"="states")) -> eviction_county
 
+#dplyr::select(eviction_county,parent_location,region) %>% unique() #check if joined right
 #Need to replace DC with a region
 eviction_county$region[eviction_county$name == "District of Columbia"] <- "South"
 
 #remove rows with no region
-eviction_county %>% drop_na(region) -> eviction_county
+eviction_county %>% drop_na(name) -> eviction_county
 ```
 
 ```{r make pct_non_white column for county}
@@ -225,30 +230,30 @@ eviction_county_2010 <- eviction_county %>%
 
 eviction_state_2010 <- eviction_state %>%
   filter(year >= 2010) %>%
-  filter(!GEOID %in% c('02', '15', '60', '66', '69', '72', '78')) 
+  filter(!GEOID %in% c('02', '15', '60', '66', '69', '72', '78'))
 ```
 
 ```{r Kmeans creating cluster}
 km <- eviction_county_2010 %>%
   group_by(GEOID) %>%
-  mutate(average_population = mean(population, na.rm = TRUE), 
-         average_poverty_rate = mean(poverty_rate, na.rm = TRUE), 
-         average_pct_renter_occupied = mean(pct_renter_occupied, na.rm = TRUE), 
-         average_median_gross_rent = mean(median_gross_rent, na.rm = TRUE), 
-         average_median_household_income = mean(median_household_income, na.rm = TRUE), 
-         average_median_property_value = mean(median_property_value, na.rm = TRUE), 
-         average_rent_burden = mean(rent_burden, na.rm = TRUE), 
-         average_pct_white = mean(pct_white, na.rm = TRUE), 
-         average_pct_af_am = mean(pct_af_am, na.rm = TRUE), 
-         average_pct_hispanic = mean(pct_hispanic, na.rm = TRUE), 
-         average_pct_am_ind = mean(pct_am_ind, na.rm = TRUE), 
-         average_pct_asian = mean(pct_asian, na.rm = TRUE), 
-         average_pct_nh_pi = mean(pct_nh_pi, na.rm = TRUE), 
-         average_pct_multiple = mean(pct_multiple, na.rm = TRUE), 
-         average_pct_other = mean(pct_other, na.rm = TRUE), 
-         average_Percent_Rural = mean(Percent_Rural, na.rm = TRUE), 
-         average_unemployment_rate = mean(unemployment_rate, na.rm = TRUE), 
-         average_pct_nonwhite = mean(pct_nonwhite, na.rm = TRUE)) 
+  mutate(average_population = mean(population, na.rm = TRUE),
+         average_poverty_rate = mean(poverty_rate, na.rm = TRUE),
+         average_pct_renter_occupied = mean(pct_renter_occupied, na.rm = TRUE),
+         average_median_gross_rent = mean(median_gross_rent, na.rm = TRUE),
+         average_median_household_income = mean(median_household_income, na.rm = TRUE),
+         average_median_property_value = mean(median_property_value, na.rm = TRUE),
+         average_rent_burden = mean(rent_burden, na.rm = TRUE),
+         average_pct_white = mean(pct_white, na.rm = TRUE),
+         average_pct_af_am = mean(pct_af_am, na.rm = TRUE),
+         average_pct_hispanic = mean(pct_hispanic, na.rm = TRUE),
+         average_pct_am_ind = mean(pct_am_ind, na.rm = TRUE),
+         average_pct_asian = mean(pct_asian, na.rm = TRUE),
+         average_pct_nh_pi = mean(pct_nh_pi, na.rm = TRUE),
+         average_pct_multiple = mean(pct_multiple, na.rm = TRUE),
+         average_pct_other = mean(pct_other, na.rm = TRUE),
+         average_Percent_Rural = mean(Percent_Rural, na.rm = TRUE),
+         average_unemployment_rate = mean(unemployment_rate, na.rm = TRUE),
+         average_pct_nonwhite = mean(pct_nonwhite, na.rm = TRUE))
   #filter(State != "AK" & State != "HI")
 km <- subset(km, select = c("GEOID", "average_population", "average_poverty_rate", "average_pct_renter_occupied", "average_median_gross_rent", "average_median_household_income", "average_median_property_value", "average_rent_burden", "average_pct_white", "average_pct_af_am", "average_pct_hispanic", "average_pct_am_ind", "average_pct_asian", "average_pct_nh_pi", "average_pct_multiple", "average_pct_other", "average_Percent_Rural", "average_unemployment_rate", "average_pct_nonwhite" ))
 # dedupe and drop nulls
@@ -262,15 +267,15 @@ km_sc <- km
 # scale numerical data
 ind <- sapply(km_sc, is.numeric)
 km_sc[ind] <- lapply(km_sc[ind], scale)
-# determine optimal clusters 
-# elbow 
+# determine optimal clusters
+# elbow
 set.seed(123)
 fviz_nbclust(km_sc, kmeans, method = "wss") # 3
 # silhouette
 fviz_nbclust(km_sc, kmeans, method = "silhouette") # 3
 # Results
 # Compute k-means clustering
-# play around with methods and k amounts 
+# play around with methods and k amounts
 set.seed(123)
 # Hartigan-Wong
 hw_km3 <- kmeans(km_sc, 3, nstart = 25, algorithm = "Hartigan-Wong")
@@ -316,13 +321,13 @@ fviz_cluster(hw_km3, data = km_sc)
 # fviz_cluster(mq_km5, data = km_sc)
 # fviz_cluster(mq_km6, data = km_sc)
 # fviz_cluster(mq_km7, data = km_sc)
- 
+
 # Extract clusters and add to data frame
 km$cluster <- hw_km3$cluster
-# km$hw_km4 <- hw_km4$cluster 
-# km$hw_km5 <- hw_km5$cluster 
-# km$hw_km6 <- hw_km6$cluster 
-# km$hw_km7 <- hw_km7$cluster 
+# km$hw_km4 <- hw_km4$cluster
+# km$hw_km5 <- hw_km5$cluster
+# km$hw_km6 <- hw_km6$cluster
+# km$hw_km7 <- hw_km7$cluster
 # km$ll_km3 <- ll_km3$cluster
 # km$cluster <- ll_km4$cluster
 # km$ll_km5 <- ll_km5$cluster
@@ -367,9 +372,9 @@ km <- km %>%
 # tmq_km5 <- table(km$mq_km5)
 # tmq_km6 <- table(km$mq_km6)
 # tmq_km7 <- table(km$mq_km7)
-# 
+#
 # # the second and fourth 4 clusters seem to be the best options--more clusters, but less overlap
-# km$cluster <- km$ll_km4 
+# km$cluster <- km$ll_km4
 ```
 
 ```{r merge back Kmeans clusters to county dataset}
@@ -378,7 +383,7 @@ eviction_county_2010 <- merge(eviction_county_2010, geo_clust)
 eviction_county_2010$cluster <- as.character(eviction_county_2010$cluster)
 
 # Add county name column
-eviction_county_2010$county_state <- str_c(tools::toTitleCase(as.character(eviction_county_2010$name)), 
+eviction_county_2010$county_state <- str_c(tools::toTitleCase(as.character(eviction_county_2010$name)),
                                            eviction_county_2010$parent_location, sep = ", ")
 ```
 
@@ -393,7 +398,7 @@ state_us_geo <- tigris::states(class= "sf")
 eviction_by_state <- eviction_state_2010 %>%
                     left_join(state_us_geo, c("GEOID" = "GEOID")) %>%
                     dplyr::select(-LSAD, -MTFCC, -FUNCSTAT, -STUSPS, -STATENS)
-            
+
 ```
 
 ```{r write csvs}
@@ -405,29 +410,47 @@ write_csv(eviction_county_2010,path = "./data/eviction_county_2010.csv")
 # Data Exploration
 
 ```{r Chunk Nulls Exploration}
-#We have 22.5% missing of eviction rate data in county and 11% missing in state. ALl 
-missing_state <- plot_missing(eviction_state)
-missing_eviction <- plot_missing(eviction_county)
-#colSums(is.na(eviction_state))/nrow(eviction_state)
-#colSums(is.na(eviction_county))/nrow(eviction_county)
+#We have 22.5% missing of eviction rate data in county and 11% missing in state. ALl
+missing_state <- plot_missing(eviction_state_2010)
+missing_eviction <- plot_missing(eviction_county_2010)
+#colSums(is.na(eviction_state_2010))/nrow(eviction_state_2010)
+#colSums(is.na(eviction_county_2010))/nrow(eviction_county_2010)
 grid.arrange(missing_state,missing_eviction,ncol=2)
 ```
+
+
+
 ```{r Check if any states missing Evictions}
-eviction_state %>% group_by(GEOID,name) %>% summarise_at(c("eviction_filings", "evictions"), sum, na.rm = TRUE) %>% filter(evictions != 0)
+eviction_state_2010 %>% group_by(GEOID,name) %>% summarise_at(c("eviction_filings", "evictions"), sum, na.rm = TRUE) %>% filter(evictions == 0)
 ```
 
 
 
 ```{r Correlation Matrix}
 
+
 #plot_correlation(na.omit(eviction_county), maxcat = 5L)
-na.omit(eviction_county) %>%
+na.omit(eviction_county_2010) %>%
+filter(year>2009) %>%
+mutate(GEOID = as.numeric(GEOID)) %>%
 select_if(is.numeric) %>%
+group_by(GEOID) %>%
+  summarise_all(mean,na.rm=TRUE) %>%
   as.matrix() %>% cor()  -> cor_matrix
 
+#corrplot1
 
-corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),21, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black")
-#corrplot(cor_matrix, type="upper", order="hclust", sig.level = 0.01, insig = "blank")
+corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),21, drop=FALSE], cl.pos='n',cl.ratio = .2, method = "number", tl.srt = 45,tl.col = "black",col = spectral[1:4],tl.cex = .8)
+
+#corrplot 2
+corrplot(cor_matrix, type="upper", order="hclust", sig.level = 0.01, insig = "blank",tl.srt = 45,tl.col = "black",cl.ratio = .2,tl.cex = .4)
+
+#corrplot 3
+ggcorrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),22, drop=FALSE], sig.level=0.05, lab_size = 4.5, p.mat = NULL,
+           insig = c("pch", "blank"), pch = 1, pch.col = "black", pch.cex =1,
+           tl.cex = 8) +
+  theme(axis.text.x = element_text(margin=margin(-2,0,0,0)),  # Order: top, right, bottom, left
+        axis.text.y = element_text(margin=margin(0,-2,0,0)))
 ```
 
 
@@ -447,7 +470,7 @@ summary(all_labor_data)
 ```{r EDA county - eviction rate}
 
 # get top 100 counties with highest average evistion rate
-eviction_county %>%
+eviction_county_2010 %>%
   group_by(GEOID) %>%
   summarise(
     avg_rate = mean(eviction_filing_rate, na.rm = TRUE)
@@ -457,7 +480,7 @@ eviction_county %>%
 
 
 # histogram of eviction rates in county dataset
-eviction_county %>%
+eviction_county_2010 %>%
   group_by(eviction_filing_rate) %>%
   count() %>%
   ggplot(aes(eviction_filing_rate)) +
@@ -468,53 +491,31 @@ eviction_county %>%
 
 
 ```{r Distribution of Variables}
-eviction_county %>%
-  dplyr::select(-year,-eviction_filings, -evictions,-imputed, -low_flag,-subbed) %>% 
-  keep(is.numeric) %>%                     # Keep only numeric columns
+eviction_county_2010 %>%
+  dplyr::select(-year,-eviction_filings, -evictions,-imputed, -low_flag,-subbed) %>%
+  mutate(GEOID = as.numeric(GEOID)) %>%
+  keep(is.numeric) %>%
+  group_by(GEOID) %>%
+  dplyr::select(-GEOID) %>%
+  # Keep only numeric columns
+  summarise_all(mean,na.rm=TRUE) %>%
   gather() %>%                             # Convert to key-value pairs
   ggplot(aes(value)) +                     # Plot the values
     facet_wrap(~ key, scales = "free") +   # In separate panels
-    geom_density() 
+    geom_density(fill=spectral[1]) +
+  theme_minimal() +
+  ggtitle("Distribution of Variables Eviction Data 2010-2016")
 ```
 
 
 
-```{r EDA state level data}
-
-# look at dataset
-
-names(eviction_state)
-
-summary(eviction_state)
-
-# look at 2016 
-eviction_state %>%
-  filter(year == 2016) %>%
-  ggplot(aes(x = name, y = `poverty-rate`)) +
-  geom_bar(stat = 'identity') +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  coord_flip()
-
-```
-
-```{r EDA county level data}
-
-# look at data set
-eviction_county %>%
-  group_by(GEOID) %
-
-ncol(eviction_county)
-summary(eviction_county)
-glimpse(eviction_county)
-
-```
 
 ```{r gganimate eviction for state}
 
 # look at eviction rate over time per state -- create gganimate
 # this needs to have better formatting for final.
 
-eviction_state %>%
+eviction_state_2010 %>%
   ggplot(aes(x = eviction_filing_rate, y = name)) +
   geom_point(aes(size = population, fill = rent_burden),
              shape = 21) +
@@ -529,28 +530,82 @@ eviction_state %>%
   theme_bw()
 ```
 
-# Set up Spatial Datasets for Mapping
-```{r set up spatial datasets}
 
-# get Census TIGER shapefiles for state
-state_us_geo <- tigris::states(class= "sf")
+```{r Region Trend Eviction Filing Rate}
 
+dplyr::select(eviction_county_2010, region,eviction_filing_rate, year) %>%
+  #filter(year>2009) %>%
+  group_by(year,region) %>%
+  summarise_all(mean,na.rm=TRUE) %>%
+  ggplot(aes(year,eviction_filing_rate,color = region)) +
+  geom_line() +
+  scale_x_continuous(breaks=seq(2009,2016,1)) +
+  theme_minimal() +
+  ggtitle("Average Regional Eviction Filing Rate by year") +
+  scale_color_brewer(palette = "Spectral")
 
-# add spatial data to the state level eviction data
-eviction_by_state <- eviction_state %>%
-                      left_join(us_geo, c("GEOID" = "GEOID"))
+dplyr::select(eviction_county_2010, region,eviction_filing_rate, year) %>%
+  filter(year > 2010) %>% #have to have even amount of years
+  na.omit() %>%
+  mutate(year_bin = ifelse(year > 2014,"y2014_2016","y2011_2013")) %>%
+  dplyr::select(region,year_bin, eviction_filing_rate) %>%
+  group_by(region,year_bin) %>%
+  summarise_all(mean,na.rm=TRUE) %>%
+  pivot_wider(names_from = "year_bin",values_from = "eviction_filing_rate") %>%
+  mutate(delta = y2014_2016 - y2011_2013) %>%
+  ggplot(aes(region,delta,fill=delta)) +
+  geom_bar(stat="identity") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Spectral") +
+  ggtitle("Average Eviction Delta of 2014-2016 vs 2011-2013")
 
-eviction_by_state
-
-# add spatial data to the county level eviction data
-eviction_by_county <- eviction_county %>%
-                      left_join(county_boundaries, c("GEOID" = "GEOID"))
-
-eviction_by_county
 ```
-
 
 ```{r}
+delta_diverse_region <- dplyr::select(eviction_county_2010, region,eviction_filing_rate, year, pct_nonwhite) %>%
+  filter(year > 2010 & pct_nonwhite > 50) %>% #have to have even amount of years
+  na.omit() %>%
+  mutate(year_bin = ifelse(year > 2014,"y2014_2016","y2011_2013")) %>%
+  dplyr::select(region,year_bin, eviction_filing_rate) %>%
+  group_by(region,year_bin) %>%
+  summarise_all(mean,na.rm=TRUE) %>%
+  pivot_wider(names_from = "year_bin",values_from = "eviction_filing_rate") %>%
+  mutate(delta = y2014_2016 - y2011_2013) %>%
+  ggplot(aes(region,delta,fill=delta)) +
+  geom_bar(stat="identity") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Spectral") +
+  ggtitle("Average Eviction Delta of 2014-2016 vs 2011-2013 with higher diversity")
 
 ```
 
+```{r}
+delta_non_diverse_region <- dplyr::select(eviction_county_2010, region,eviction_filing_rate, year, pct_nonwhite) %>%
+  filter(year > 2010 & pct_nonwhite < 50) %>% #have to have even amount of years
+  na.omit() %>%
+  mutate(year_bin = ifelse(year > 2014,"y2014_2016","y2011_2013")) %>%
+  dplyr::select(region,year_bin, eviction_filing_rate) %>%
+  group_by(region,year_bin) %>%
+  summarise_all(mean,na.rm=TRUE) %>%
+  pivot_wider(names_from = "year_bin",values_from = "eviction_filing_rate") %>%
+  mutate(delta = y2014_2016 - y2011_2013) %>%
+  ggplot(aes(region,delta,fill=delta)) +
+  geom_bar(stat="identity") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Spectral") +
+  ggtitle("Average Eviction Delta of 2014-2016 vs 2011-2013 with less diversity")
+
+grid.arrange(delta_diverse_region,delta_non_diverse_region)
+```
+
+```{r}
+dplyr::select(eviction_county_2010,cluster,eviction_filing_rate,region) %>%
+  na.omit()%>%
+  ggplot(aes(y=eviction_filing_rate,x=cluster)) +
+  geom_boxplot(aes(fill=cluster)) +
+  ylim(0,50) +
+  scale_color_brewer(palette = "Spectral") +
+  theme_minimal() +
+  ggtitle("Dispersion of Eviction Filing Rate among clusters") +
+  facet_wrap(~region)
+```
