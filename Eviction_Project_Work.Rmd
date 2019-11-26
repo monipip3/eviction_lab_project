@@ -45,18 +45,18 @@ suppressMessages(library(MASS))
 # Data Downloads
 ```{r download data - eviction dataset}
 
-# set up a data directory if it does not exist already
-if(!file.exists("./data")) {dir.create("./data")}
-
-# store urls needed - right click on excel symbol and select 
-# copy link address
-eviction_US_all <- c("https://eviction-lab-data-downloads.s3.amazonaws.com/US/all.csv")
-
-# check to see if URL saved to variable
-eviction_US_all
-
-#download the csv file
-download.file(eviction_US_all, destfile = "./data/eviction_US_all.csv", mode = "wb") #this takes a bit ranges from 2-5 minutes, over bad WIFI might take 10 min
+# # set up a data directory if it does not exist already
+# if(!file.exists("./data")) {dir.create("./data")}
+# 
+# # store urls needed - right click on excel symbol and select 
+# # copy link address
+# eviction_US_all <- c("https://eviction-lab-data-downloads.s3.amazonaws.com/US/all.csv")
+# 
+# # check to see if URL saved to variable
+# eviction_US_all
+# 
+# #download the csv file
+# download.file(eviction_US_all, destfile = "./data/eviction_US_all.csv", mode = "wb") #this takes a bit ranges from 2-5 minutes, over bad WIFI might take 10 min
 
 # read the csv file into R and save into dataframe
 eviction_US_all <- read_csv("./data/eviction_US_all.csv")
@@ -94,7 +94,7 @@ urban_rural <- urban_rural %>%
 # create Rural Flag where Ruran Percentage is greater than 50%
 urban_rural <-urban_rural %>%
   mutate(rural_flag = ifelse(round(Percent_Rural, 3) > 50, 1, 0)) %>%
-  select(GEOID, State, Percent_Rural, rural_flag) 
+  dplyr::select(GEOID, State, Percent_Rural, rural_flag) 
 
 ```
 
@@ -147,7 +147,7 @@ map(labor_files,read_files) -> all_labor_data
 all_labor_data %>% reduce(full_join) -> all_labor_data
 
 #remove some rows that have NA in Year and remove empty column next to year
-filter(all_labor_data,!is.na(year)) %>% select(-6) -> all_labor_data
+filter(all_labor_data,!is.na(year)) %>% dplyr::select(-6) -> all_labor_data
 ```
 
 
@@ -185,7 +185,7 @@ county_boundaries <- st_read("./data/spatial/county_shp/cb_2018_us_county_500k.s
 
 eviction_county <- eviction_US_all %>%
   right_join(urban_rural, key = "GEOID") %>% 
-  left_join(select(all_labor_data,GEOID,year,unemployment_rate), by =c("GEOID" = "GEOID", "year"="year"))
+  left_join(dplyr::select(all_labor_data,GEOID,year,unemployment_rate), by =c("GEOID" = "GEOID", "year"="year"))
          
 ```
 
@@ -376,6 +376,10 @@ km <- km %>%
 geo_clust <- subset(km, select = c("GEOID", "cluster"))
 eviction_county_2010 <- merge(eviction_county_2010, geo_clust)
 eviction_county_2010$cluster <- as.character(eviction_county_2010$cluster)
+
+# Add county name column
+eviction_county_2010$county_state <- str_c(tools::toTitleCase(as.character(eviction_county_2010$name)), 
+                                           eviction_county_2010$parent_location, sep = ", ")
 ```
 
 ```{r creating spatial datasets for state}
@@ -465,7 +469,7 @@ eviction_county %>%
 
 ```{r Distribution of Variables}
 eviction_county %>%
-  select(-year,-eviction_filings, -evictions,-imputed, -low_flag,-subbed) %>% 
+  dplyr::select(-year,-eviction_filings, -evictions,-imputed, -low_flag,-subbed) %>% 
   keep(is.numeric) %>%                     # Keep only numeric columns
   gather() %>%                             # Convert to key-value pairs
   ggplot(aes(value)) +                     # Plot the values
