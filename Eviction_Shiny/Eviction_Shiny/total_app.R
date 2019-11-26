@@ -93,21 +93,21 @@ ui <- fluidPage(
       selectInput(
         'ycol', 'Y Variable', 
         choices = c('eviction_filing_rate','unemployment_rate'
-      ),
-      actionButton(
-        inputId = "graph", "Create a Trendline"
+        )),
+        actionButton(
+          inputId = "graph", "Create a Trendline"
+        )
+
+    ),
+    mainPanel(
+      tabsetPanel(type = "tabs",
+                  tabPanel("Map States", leafletOutput("map")),
+                  # tabPanel("County Trends", plotOutput("county_trendlines")),
+                  # tabPanel("Compare Counties", tableOutput("similar_counties"))
+                  tabPanel("Counties", plotOutput("county_trendlines"), tableOutput("similar_counties"))
       )
     )
-  ),
-  mainPanel(
-    tabsetPanel(type = "tabs",
-                tabPanel("Map States", leafletOutput("map")),
-                # tabPanel("County Trends", plotOutput("county_trendlines")),
-                # tabPanel("Compare Counties", tableOutput("similar_counties"))
-                tabPanel("Counties", plotOutput("county_trendlines"), tableOutput("similar_counties"))
-                )
-  )
-))
+  ))
 
 server <- function(input, output, session) {
   observe({
@@ -120,8 +120,8 @@ server <- function(input, output, session) {
     input$graph,{
       filter(eviction_county_2010,name==input$county & parent_location == input$state) %>%
         dplyr::select(input$ycol,year)
-      }
-    )
+    }
+  )
   
   y <- reactive({
     subset(state_eviction, state_eviction$year == input$year)
@@ -143,7 +143,8 @@ server <- function(input, output, session) {
       geom_line(aes(color=input$ycol)) +
       theme_minimal() +
       ggtitle(paste0(input$ycol," trended by year"))+
-      scale_fill_brewer(palette = "Spectral")
+      scale_fill_brewer(palette = "Spectral") +
+      ylab(paste0(input$ycol))
   })
   
   z <- reactive({filter(eviction_county_2010,parent_location == input$state & name == input$county)%>%
