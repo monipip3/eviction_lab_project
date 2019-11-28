@@ -69,7 +69,8 @@ map_maker <- function(x, y){
       addLegend(blugr,
                 values = y$pct_renter_occupied,
                 position = "bottomleft",
-                title = "Percent <br/ > Renter Occupied") }}
+                title = "Percent <br/ > Renter Occupied") }
+}
  
 
     ui <- fluidPage(
@@ -89,33 +90,35 @@ map_maker <- function(x, y){
                 leafletOutput("map"))
             ))
                                      
-    
-    # Define server logic required to draw a histogram
 
-    server <- function(input, output, session) {
-     
-    #filtered_data <- reactive({
-      #state_eviction[state_eviction$year == input$year, ]
-      
-      y <- reactive({
-        subset(state_eviction, state_eviction$year == input$year)
-      
-    })
-      
-      x <- reactive({
-        input$layer
-      
-    })
-        
-    output$map <- renderLeaflet({
-      
-      leaflet() %>% 
-        setView(-98.483330, 38.712046, zoom = 4) %>%
-        addProviderTiles(providers$CartoDB.Positron)
-      
-      map_maker(x(), y())
-      
-      })
+
+# Define server logic required to draw a histogram
+
+server <- function(input, output, session) {
+  
+  #filtered_data <- reactive({
+  #state_eviction[state_eviction$year == input$year, ]
+  
+  y <- reactive({
+    subset(state_eviction, state_eviction$year == input$year)
+    
+  })
+  
+  x <- reactive({
+    input$layer
+    
+  })
+  
+  output$map <- renderLeaflet({
+    
+    leaflet() %>% 
+      setView(-98.483330, 38.712046, zoom = 4) %>%
+      addProviderTiles(providers$CartoDB.Positron)
+    
+    map_maker(x(), y())
+
+    
+  })
 }
 
 # Run the application 
