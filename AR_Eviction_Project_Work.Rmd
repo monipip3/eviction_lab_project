@@ -983,6 +983,8 @@ thw_km7 <- table(km$hw_km7)
 ```
 
 ```{r cluster_eda}
+km$cluster <- thw_km3$cluster
+
 geo_clust <- subset(km, select = c("GEOID", "cluster"))
 eviction_county_2010 <- merge(eviction_county_2010, geo_clust)
 eviction_county_2010$cluster <- as.character(eviction_county_2010$cluster)
@@ -1029,4 +1031,21 @@ eviction_county_2010 %>%
   scale_color_brewer(palette = "Spectral") +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "Regions by Cluster")
+```
+
+```{r}
+geo_clust <- subset(km, select = c("GEOID", "cluster"))
+eviction_county_2010 <- merge(eviction_county_2010, geo_clust)
+eviction_county_2010$cluster <- as.character(eviction_county_2010$cluster)
+
+# Add county name column
+eviction_county_2010$county_state <- str_c(tools::toTitleCase(as.character(eviction_county_2010$name)),
+                                           eviction_county_2010$parent_location, sep = ", ")
+
+eviction_county_2010 %>%
+  ggplot(aes(year, eviction_filing_rate)) + 
+  geom_line(aes(x = year,
+                y = eviction_filing_rate,
+                group = GEOID, 
+                color = cluster))
 ```
