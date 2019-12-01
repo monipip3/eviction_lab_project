@@ -3,16 +3,16 @@ title: "Eviction Lab Data Exploration"
 author: "Allison Shafer, Monica Puerto, Allison Ragan"
 date: "12/4/2019"
 output:
-  pdf_document: default
   word_document: default
+  pdf_document: default
   html_document: default
 ---
 ```{r knitr setup, echo=FALSE}
-knitr::opts_chunk$set(echo = FALSE,eval = TRUE,include = FALSE,fig.height = 12,fig.width = 8)
+knitr::opts_chunk$set(echo = FALSE,eval = TRUE)
 ```
 
 
-```{r setup}
+```{r setup, include=FALSE}
 
 # call in libraries to use
 suppressMessages(library(tidyverse))
@@ -43,7 +43,7 @@ suppressMessages(library(sp))
 ```
 
 
-```{r download data - eviction dataset}
+```{r download data - eviction dataset, include=FALSE}
 
 # set up a data directory if it does not exist already
 if(!file.exists("./data")) {dir.create("./data")}
@@ -65,7 +65,7 @@ eviction_US_all <- read_csv("./data/eviction_US_all.csv")
 names(eviction_US_all) <- gsub(x = names(eviction_US_all), pattern = "-", replacement = "_")  
 ```
 
-```{r import rural urban}
+```{r import rural urban, include=FALSE}
 
 # download and load urbal/rural classifications
 
@@ -98,7 +98,7 @@ urban_rural <-urban_rural %>%
 
 ```
 
-```{r Webscrape US Labor Stats}
+```{r Webscrape US Labor Stats, include=FALSE}
 if(!file.exists("./data/labor_data")) {dir.create("./data/labor_data")}
 
 # save url into a variable
@@ -151,7 +151,7 @@ filter(all_labor_data,!is.na(year)) %>% dplyr::select(-6) -> all_labor_data
 ```
 
 
-``` {r small data transformations}
+``` {r small data transformations, include=FALSE}
 
 # creating a GEOID to join
 all_labor_data$GEOID <- str_c(all_labor_data$state_fips_code,all_labor_data$county_fips_code)
@@ -162,7 +162,7 @@ all_labor_data$year <- as.integer(all_labor_data$year)
 ```
 
 
-```{r download county spatial data}
+```{r download county spatial data, include=FALSE}
 
 # set up a data directory if it does not exist already
 if(!file.exists("./data")) {dir.create("./data")}
@@ -179,7 +179,7 @@ county_boundaries <- st_read("./data/spatial/county_shp/cb_2018_us_county_500k.s
 
 ```
 
-```{r make county dataset}
+```{r make county dataset, include=FALSE}
 # County Table joined with 2 additional variables : rural flag and unemployment rate
 
 eviction_county <- eviction_US_all %>%
@@ -188,7 +188,7 @@ eviction_county <- eviction_US_all %>%
 
 ```
 
-```{r make state dataset}
+```{r make state dataset, include=FALSE}
 
 eviction_state <- eviction_US_all %>%
   filter(nchar(GEOID) == 2)
@@ -196,7 +196,7 @@ eviction_state <- eviction_US_all %>%
 
 ```
 
-```{r make region column,warning=FALSE}
+```{r make region column,warning=FALSE, include=FALSE}
 states_regions <- as.data.frame(cbind("states"= state.name,"region"=state.region))# creating state and region table
 # names(states_regions) <- c("states","region")
 # recode regions
@@ -215,12 +215,12 @@ eviction_county$region[eviction_county$name == "District of Columbia"] <- "South
 eviction_county %>% drop_na(name) -> eviction_county
 ```
 
-```{r make pct_non_white column for county}
+```{r make pct_non_white column for county, include=FALSE}
 eviction_county$pct_nonwhite <- 100 - eviction_county$pct_white
 ```
 
 
-```{r removing 2009 and earlier and non continental US}
+```{r removing 2009 and earlier and non continental US, include=FALSE}
 eviction_county_2010 <- eviction_county %>%
   filter(year >= 2010) %>%
   mutate(rural_flag = as.character(rural_flag)) %>%
@@ -231,7 +231,7 @@ eviction_state_2010 <- eviction_state %>%
   filter(!GEOID %in% c('02', '15', '60', '66', '69', '72', '78'))
 ```
 
-```{r K-means creating cluster}
+```{r K-means creating cluster, include=FALSE}
 km <- eviction_county_2010 %>%
   group_by(GEOID) %>%
   mutate(average_population = mean(population, na.rm = TRUE),
@@ -268,12 +268,12 @@ km_sc[ind] <- lapply(km_sc[ind], scale)
 # determine optimal clusters
 # elbow
 set.seed(123)
-fviz_nbclust(km_sc, kmeans, method = "wss") # 3
+#fviz_nbclust(km_sc, kmeans, method = "wss") # 3
 # silhouette
-fviz_nbclust(km_sc, kmeans, method = "silhouette") # 3
+#fviz_nbclust(km_sc, kmeans, method = "silhouette") # 3
 # Results
 final <- kmeans(km_sc, 3, nstart = 25, algorithm = "Hartigan-Wong")
-fviz_cluster(final, data = km_sc)
+#fviz_cluster(final, data = km_sc)
 
 # Extract clusters and add to data frame
 km$cluster <- final$cluster
@@ -286,7 +286,7 @@ km <- km %>%
   dplyr::select(GEOID, everything())
 ```
 
-```{r merge back K-means clusters to county dataset}
+```{r merge back K-means clusters to county dataset, include=FALSE}
 geo_clust <- subset(km, select = c("GEOID", "cluster"))
 eviction_county_2010 <- merge(eviction_county_2010, geo_clust)
 eviction_county_2010$cluster <- as.character(eviction_county_2010$cluster)
@@ -296,7 +296,7 @@ eviction_county_2010$county_state <- str_c(tools::toTitleCase(as.character(evict
                                            eviction_county_2010$parent_location, sep = ", ")
 ```
 
-```{r creating spatial datasets for state}
+```{r creating spatial datasets for state, include=FALSE}
 
 # get Census TIGER shapefiles for state
 state_us_geo <- tigris::states(class= "sf")
@@ -311,7 +311,7 @@ eviction_by_state <- eviction_state_2010 %>%
 ```
 
 
-```{r set up spatial datasets - state level}
+```{r set up spatial datasets - state level, include=FALSE}
 
 # test reading in csv
 eviction_by_state <- eviction_state_2010
@@ -336,7 +336,7 @@ as.data.frame(state_eviction) %>%
 
 ```
 
-```{r setup spatial datasets - county level}
+```{r setup spatial datasets - county level, include=FALSE}
 
 # add spatial data to the county level eviction data
 sp_eviction_county <- county_boundaries %>%
@@ -370,7 +370,7 @@ county_all_avgs
 
 ```
 
-```{r Create grouped spatial data tables for analysis}
+```{r Create grouped spatial data tables for analysis, echo=FALSE}
 
 # Create average filing rate by state table
 filing_by_state <- state_us_geo %>%
@@ -401,10 +401,9 @@ state_all_avgs <- state_all_avgs %>%
 
 
 df_allavg_st <- as.data.frame(state_all_avgs)
-df_allavg_st
 ```
 
-```{r create data breaks for symbology- state map}
+```{r create data breaks for symbology- state map, include=FALSE}
 
 pretty_breaks <- c(5, 10, 15, 20, 25, 65)
 # find the extremes
@@ -433,15 +432,21 @@ state_all_avgs$geometry
 
 ```
 
-```{r write csvs for Shiny App}
+```{r write csvs for Shiny App, include=FALSE}
 write_csv(eviction_by_state,path = "./data/eviction_by_state.csv")
 write_csv(eviction_county_2010,path = "./data/eviction_county_2010.csv")
 ```
+
+
+```{r, include=FALSE}
+#In case above broke and did not run if you have Windows use the Load R Data
+#load(".RData")
+```
+
   
-  For our group project, we analyzed data from The Eviction Lab to answer our posed questions regarding which attributes are most associated with eviction filing rates and who in the population is most affected by evictions.  Eviction filing rates varied greatly by region with the Northeast and the South regions experiencing one to two times higher eviction filing rates compared to the West and North Central regions. Comparing the eviction filing rate averages, the last few years of the dataset ending in 2016, the Northeast region has seen the steepest decline starting in 2013 compared to the rest of the regions, whereas the South has remained flat, and in the North Central and West regions have declined since 2012, but the West saw a slight increase in 2016. Drilling into the change by Counties, the South as a region remained flat because there are many counties who experience an increase being offset by many counties in the South decreasing. 
+  For our group project, we analyzed data from The Eviction Lab to answer our posed questions regarding which attributes are most associated with eviction filing rates and whom is most affected by evictions.  Eviction filing rates varied greatly by region with the Northeast and the South regions experiencing one to two times higher eviction filing rates compared to the West and North Central regions. Comparing the eviction filing rate averages, the last few years of the dataset ending in 2016, the Northeast region has seen the steepest decline starting in 2013 compared to the rest of the regions, whereas the South has remained flat, and in the North Central and West regions have declined since 2012, but the West saw a slight increase in 2016. Drilling into the change by Counties, the South as a region remained flat because there are many counties who experience an increase being offset by many counties in the South decreasing. 
   
-```{r Region Trend Eviction Filing Rate, echo=TRUE}
-grid.arrange(
+```{r Region Trend Eviction Filing Rate, echo=FALSE}
 dplyr::select(eviction_county_2010, region,eviction_filing_rate, year) %>%
   #filter(year>2009) %>%
   group_by(year,region) %>%
@@ -451,7 +456,7 @@ dplyr::select(eviction_county_2010, region,eviction_filing_rate, year) %>%
   scale_x_continuous(breaks=seq(2009,2016,1)) + 
   theme_minimal() + 
   ggtitle("Average Regional Eviction Filing Rate by year") +
-  scale_color_brewer(palette = "Spectral"),
+  scale_color_brewer(palette = "Spectral")
 dplyr::select(eviction_county_2010, region,eviction_filing_rate, year) %>%
   filter(year > 2010) %>% #have to have even amount of years
   na.omit() %>%
@@ -465,12 +470,11 @@ dplyr::select(eviction_county_2010, region,eviction_filing_rate, year) %>%
   geom_bar(stat="identity") +
   theme_minimal() +
   scale_color_brewer(palette = "Spectral") +
-  ggtitle("Average Eviction Delta of 2014-2016 vs 2011-2013"),ncol=2)
-  
+  ggtitle("Average Eviction Delta of 2014-2016 vs 2011-2013")
 ```
   
   
-```{r, echo=TRUE}
+```{r, echo=FALSE}
 dplyr::select(eviction_county_2010, name,eviction_filing_rate, year,region) %>%
   filter(year > 2010) %>% #have to have even amount of years
   na.omit() %>%
@@ -497,7 +501,8 @@ dplyr::select(eviction_county_2010, name,eviction_filing_rate, year,region) %>%
 Additionally, the attributes that had the highest positive correlations with eviction filing rates were the percent of African American population and median gross rent. Eviction filing rates were also positively correlated with rent burden, renting costs, and percent of renter occupied. Eviction filing rates were negatively correlated with the percent of white population and the percent rural area. Areas that were more rural had less diversity and lower renter occupancy rates therefore saw less filing eviction rates. Areas that had more ethnic diversity, were more populated, and had higher renter occupancy percentages with higher rental costs saw higher eviction filing rates.
 
 
-```{r Correlation Matrix, echo=TRUE}
+```{r Correlation Matrix, echo=FALSE}
+spectral <- c(brewer.pal(11, "Spectral"))
 #plot_correlation(na.omit(eviction_county), maxcat = 5L)
 na.omit(eviction_county) %>%
 filter(year>2009) %>%
@@ -511,29 +516,31 @@ corrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),22, drop=FALSE], cl.
 #corrplot 2
 corrplot(cor_matrix, type="upper", order="hclust", sig.level = 0.01, insig = "blank",tl.srt = 45,tl.col = "black",cl.ratio = .2,tl.cex = .4)
 #corrplot 3
-ggcorrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),22, drop=FALSE], sig.level=0.05, lab_size = 4.5, p.mat = NULL, 
-           insig = c("pch", "blank"), pch = 1, pch.col = "black", pch.cex =1,
-           tl.cex = 8) +
-  theme(axis.text.x = element_text(margin=margin(-2,0,0,0)),  # Order: top, right, bottom, left
-        axis.text.y = element_text(margin=margin(0,-2,0,0))) 
+# ggcorrplot(cor_matrix[,1:nrow(cor_matrix)][1:nrow(cor_matrix),22, drop=FALSE], sig.level=0.05, lab_size = 4.5, p.mat = NULL, 
+#            insig = c("pch", "blank"), pch = 1, pch.col = "black", pch.cex =1,
+#            tl.cex = 8) +
+#   theme(axis.text.x = element_text(margin=margin(-2,0,0,0)),  # Order: top, right, bottom, left
+#         axis.text.y = element_text(margin=margin(0,-2,0,0))) 
 ```
 
 
-The Eviction Lab dataset came from a department at Princeton University called The Eviction Lab. They collected, geocoded, aggregated, cleaned, and publicized a massive dataset consisting of 82.9 million court records that occurred in the United States during 2000-2016. The Freedom of Information Act (FOIA), allows any citizen to request access to records from any federal agency. Through bulk data requests from 13 states, the Eviction Lab was able to acquire 12.8 million individual court-ordered eviction records. The rest, around 66 million records were purchased from the services of LexisNexis and about 11 million from American Information Research Services Inc (AIRS). The Eviction Lab then treated each observation at the household level versus the individual level, so if there were two people in the case record, it would be counted as one case record per household versus one case record per person in the eviction case record. Also, commercial evictions were excluded from these court records and focused solely on cases that occurred in addresses with rental leases. In the end, the Eviction Lab team ended with around 38 million unique case records. The Eviction Lab then supplemented the eviction data with Census Bureau data by joining the datasets by zip code. The Census Bureau data included were variables like population, Geographic ID (GEOID), demographic percentages, income levels, rental variables (percent renter-occupied, median gross rent), etc.  
+The Eviction Lab dataset came from a department at Princeton University called The Eviction Lab. They collected, geocoded, aggregated, cleaned, and publicized a massive dataset consisting of 82.9 million court records that occurred in the United States during 2000-2016. [The Freedom of Information Act (FOIA)](https://www.foia.gov/about.html), allows any citizen to request access to records from any federal agency. Through bulk data requests from 13 states, the Eviction Lab was able to acquire 12.8 million individual court-ordered eviction records. The rest, around 66 million records were purchased from the services of [LexisNexis](https://www.lexisnexis.com/en-us/about-us/about-us.page) and about 11 million from [American Information Research Services Inc (AIRS)](https://www.amer-info.com/about-airs/).
+The Eviction Lab then treated each observation at the household level versus the individual level, so if there were two people in the case record, it would be counted as one case record per household versus one case record per person in the eviction case record. Also, commercial evictions were excluded from these court records and focused solely on cases that occurred in addresses with rental leases. In the end, the Eviction Lab team ended with around 38 million unique case records. The Eviction Lab then supplemented the eviction data with Census Bureau data by joining the datasets by zip code. The Census Bureau data included were variables like population, Geographic ID (GEOID), demographic percentages, income levels, rental variables (percent renter-occupied, median gross rent), etc.  
 
-The Eviction Lab dataset we started our analysis with included 5,501,283 observations with 27 variables, and included data for the years 2000-2016. The data included information for all levels of government including state, county, incorporated place, and minor civil divisions, as well as for Census tracts and block groups. The dataset was mostly ‘tidy’, but we did need to tidy up the column names, which were originally hyphenated.  After our initial look at the data, we decided as a group that we wanted to focus our analysis on the state level governments and county level governments. We based this decision on a few observations from our initial exploratory data analysis. First, the more granular the data were the more null values we encountered; at the county level, our variable of interest, eviction rate, had around 23% null values. If the data was anymore granular, we would encounter higher percentages of null values in our variables of interest for areas when looking at lower government levels. For the purposes of analyzing data correlations and or using the data for modeling, we did not want a lack of data to be an issue.
+The Eviction Lab dataset we started our analysis with included 5,501,283 observations with 27 variables, and included data for the years 2000-2016. The data included information for all levels of counties including state, county, incorporated place, and minor civil divisions, as well as for Census tracts and block groups. The dataset was mostly ‘tidy’, but we ended up adding more variables from different datasets that needed tidying to be joined and we then segmented further for analysis. After our initial look at the data, we decided as a group that we wanted to focus our analysis on the state level countiess and county level countiess. We based this decision on a few observations from our initial exploratory data analysis. First, the more granular the data were the more null values we encountered; at the county level, our variable of interest, eviction rate, had around 23% null values. If the data was anymore granular, we would encounter higher percentages of null values in our variables of interest for areas when looking at lower counties levels. For the purposes of analyzing data correlations and or using the data for modeling, we did not want a lack of data to be an issue.
 
 
-```{r Chunk Nulls Exploration, echo=TRUE}
+```{r Chunk Nulls Exploration, echo=FALSE}
 #We have 22.5% missing of eviction rate data in county and 11% missing in state. ALl 
 plot_missing(eviction_state,title = "Missing Data in Eviction States Table",ggtheme = theme_minimal(),list(Good = 0.02, OK = 0.1, Bad = 0.2,Remove=.3))
 plot_missing(eviction_county,title = "Missing Data in Eviction County Table",ggtheme = theme_minimal(),list(Good = 0.02, OK = 0.1, Bad = 0.2,Remove=.3))
+
 ```
-Second, we decided we were interested in incorporating additional data that was not included in our dataset, such as unemployment rates, regional information, and an indicator of whether a government was considered rural, to determine if these variables impacted the eviction related data. During our research for additional data, we noticed that most of the datasets we were searching for were most frequently tabulated at the county level. Additionally, most of the resources included the same primary key representing the geographic code for the government, the GEOID, that was present in the Eviction Lab dataset. 
+Second, we decided we were interested in incorporating additional data that was not included in our dataset, such as unemployment rates, regional information, and an indicator of whether a counties was considered rural, to determine if these variables impacted the eviction related data. During our research for additional data, we noticed that most of the datasets we were searching for were most frequently tabulated at the county level. Additionally, most of the resources included the same primary key representing the geographic code for the counties, the GEOID, that was present in the Eviction Lab dataset. 
 
-To obtain the unemployment rate data, we used webscraping methods and built functions to download  and aggregate unemployment rate data which was organized in multiple Excel workbooks by year, from the United State Bureau of Labor Statistics website. In order to join the unemployment rate data to our dataset, we had to create the primary key of GEOID for the unemployment rate data. We did this by concatenating the state and county FIPS codes. For the rural indicator, we obtained data that featured the percent rural area from the Census Bureau which was tabulated based off of 2010 Census data. Using the provided percent rural field, we created a field to indicate whether we would consider the government as rural. We used a threshold of 50% or more for the percent rural field to classify the government as rural. We then joined this data to our dataset using the primary key, GEOID. Lastly, we used a built in R dataset called United States Figures and Facts containing Region names (Northeast, North Central, South, and West) to identify the regions for analysis, which we joined into our dataset by state name.
+To obtain the unemployment rate data, we used webscraping methods and built functions to download  and aggregate unemployment rate data which was organized in multiple Excel workbooks by year, from the [United State Bureau of Labor Statistics website](https://www.bls.gov/lau/#tables). In order to join the unemployment rate data to our dataset, we had to create the primary key of GEOID for the unemployment rate data. We did this by concatenating the state and county FIPS codes. For the rural indicator, we obtained data that featured the percent rural area from the Census Bureau which was tabulated based off of 2010 Census data. Using the provided percent rural field, we created a field to indicate whether we would consider the counties as rural or not. We used a threshold of 50% or more for the percent rural field to classify the counties as rural. We then joined this data to our dataset using the primary key, GEOID. Lastly, we used a built in R dataset called United States Figures and Facts containing region names (Northeast, North Central, South, and West) to identify the regions for analysis, which we joined into our dataset by state name.
 
-We also decided that since we were analyzing data for the various levels of government in the country, we wanted to visualize our dataset using maps. In order to create the maps, we needed to acquire geospatial data or shapefiles. We used a package in R called Tigris to obtain the shapefiles for the states, however the Tigris option for using the county level data was not working properly so we had to seek alternative resources. For the county level spatial data, we downloaded shapefiles from the Census Bureau. We then had to join the spatial datasets to our datasets to be able to display the data using a choropleth map. We completed additional spatial data manipulations to get the data in a SpatialPolygonDataframe dataframe to utilize the data with the Leaflet package for our Shiny application.
+We also decided that since we were analyzing data for the various levels of counties in the country, we wanted to visualize our dataset using maps. In order to create the maps, we needed to acquire geospatial data or shapefiles. We used a package in R called Tigris to obtain the shapefiles for the states, however the Tigris option for using the county level data was not working properly so we had to seek alternative resources. For the county level spatial data, we downloaded shapefiles from the Census Bureau. We then had to join the spatial datasets to our datasets to be able to display the data using a choropleth map. We completed additional spatial data manipulations to get the data in a SpatialPolygonDataframe dataframe to utilize the data with the Leaflet package for our Shiny application.
 
 In addition to joining outside datasets to our dataset, we added a handful of extra columns using the existing data. We created a column called ‘percent non-white’ which subtracted one minus the percetange of white population. We also created a column that assigned a cluster to a county using a K-means model. 
 
@@ -544,26 +551,24 @@ For the K-means model, we averaged the data over the years by county so that we 
 One downside of using K-means to cluster counties is that the k or number of clusters must be specified in advance, but we used both the elbow method and the silhouette method to recommend the optimal amount of clusters. Both determined that 3 is the optimal amount of clusters so we built a K-means model using the Hartigan-Wong algorithm with 3 clusters
 
 
-```{r Kmeans visuals , echo=TRUE}
-
-grid.arrange(fviz_nbclust(km_sc, kmeans, method = "wss"), # 3
+```{r Kmeans visuals , echo=FALSE}
+fviz_nbclust(km_sc, kmeans, method = "wss") # 3
 # silhouette
-fviz_nbclust(km_sc, kmeans, method = "silhouette") ,# 3
+fviz_nbclust(km_sc, kmeans, method = "silhouette") # 3
 # Results
-fviz_cluster(final, data = km_sc))
+fviz_cluster(final, data = km_sc)
 ```
 
-When exploring the data by visualizing and summarizing data, one of our initial discoveries was  four states, South Dakota, North Dakota, Alaska, and Arkansas, did not have eviction rate data because the Eviction Lab team decided to only include county data and derive estimates from counties that had at least two consecutive year worth of data. Because of this, we decided to focus our analysis on the eviction filing rate instead. (Need to add why it was not null here), (insert image)
-
-After analyzing our main variable of interest, eviction filing rate, we realized that the percentage of null eviction filing rate values at the county level averaged around 17% from 2000 to 2010, and dropped to 13% after 2010, while the state level averaged around 6% null values for 2000-2010, and dropped to less than 1% of null values for data from 2010-2016. Therefore, we decided to subset the data from 2010 onwards for both state and counties.
-
-```{r Check if any states missing Evictions, echo=TRUE}
+When exploring the data by visualizing and summarizing data, one of our initial discoveries was  four states, South Dakota, North Dakota, Alaska, and Arkansas, did not have eviction rate data because the Eviction Lab team decided to only include county data and derive estimates from counties that had at least two consecutive years worth of data. Because of this, we decided to focus our analysis on the eviction filing rate instead. 
+```{r Check if any states missing Evictions, include=FALSE}
 eviction_state %>% group_by(GEOID,name) %>% summarise_at(c("eviction_filings", "evictions"), sum, na.rm = TRUE) %>% filter(evictions == 0) -> null_states
 grid.arrange(tableGrob(null_states))
 ```
 
+After analyzing our main variable of interest, eviction filing rate, we realized that the percentage of null eviction filing rate values at the county level averaged around 17% from 2000 to 2010, and dropped to 13% after 2010, while the state level averaged around 6% null values for 2000-2010, and dropped to less than 1% of null values for data from 2010-2016. Therefore, we decided to subset the data from 2010 onwards for both state and counties.
 
-```{r Check %pct counties with complete eviction filing by year, echo=TRUE}
+
+```{r Check pct counties with complete eviction filing by year, echo=FALSE,include=FALSE}
 dplyr::select(eviction_county,GEOID,year,eviction_filing_rate) %>% 
   filter(!is.na(GEOID)) %>%
   pivot_wider(names_from=year,values_from = eviction_filing_rate) -> pivot_wider_years
@@ -574,12 +579,12 @@ subset(years_null,pct_eviction_rate_null != 0) %>%
   ggplot(aes(year,pct_eviction_rate_null)) +
   geom_bar(stat = "identity",fill=spectral[1]) +
   theme_classic() +
-  ggtitle("Percent of Counties with Null Eviction Filing Rate by Year")
+  ggtitle("% of Counties with Null Eviction Filing Rate by Year")
 ```
 
 Starting with a higher level of analysis by reviewing the state level data, we used the newly altered dataset to analyze the eviction filing rate by state, it was apparent that the highest eviction filing rate for all seven years was in Maryland, with South Carolina having the second highest Eviction Filing Rate all seven years. 
 
-```{r EDA state level data, echo=TRUE}
+```{r EDA state level data, echo=FALSE}
 # look at 2016 
 eviction_state_2010 %>%
   filter(year == 2016) %>%
@@ -590,12 +595,12 @@ eviction_state_2010 %>%
   coord_flip() +
   theme(axis.text.y = element_text(size = 7)) +
   ggtitle("Eviction Filing Rate by State") +
-  labs(fill = "Percent Rent Burden") +
+  labs(fill = "% Rent Burden") +
   ylab("Eviction Filing Rate") +
   xlab("State")
 ```
 
-```{r ggplot for static maps, echo=TRUE}
+```{r ggplot for static maps, echo=FALSE}
 
 # map eviction filing rate by state
 
@@ -634,10 +639,9 @@ ggplot(data = state_all_avgs) +
 
 ```
 
-Looking at the  distribution of eviction filing rates, the median average eviction filing rates per county from 2010-2016 were around 3.00 percent with a heavy right tail skew with a frequency of about 250 counties. There were over 200 counties with averages during this time period that experienced average eviction filing rates that ranged from 20 to 50. The top ten counties with average eviction rates over the span of the seven years, all belonged to the Southern region with Prince George’s County, Maryland experiencing over 100% average eviction filing rates. Maryland also experienced a 19% increase in poverty rate from the 1990s to 2016, while seeing a 25% increase in population during that same time according to Washington Top News. Prince George County’s according to our K-means model is similar to San Bernardino County, CA with similar percentages of renter occupied rates, median gross rent, rent burden rates, and property values. San Bernardino County, however, had an even higher poverty rate and higher population, but had a much smaller average eviction filing rate with 6% versus 112%. This shows that there might be something missing from the data that is not being captured in this disparity. The only stark difference in this data from these counties is Prince George’s County has about  ⅓ more of people of color. 
+Looking at the  distribution of eviction filing rates, the median average eviction filing rates per county from 2010-2016 were around 3.00 percent with a heavy right tail skew with a frequency of about 250 counties. There were over 200 counties with averages during this time period that experienced average eviction filing rates that ranged from 20 to 50. 
 
-
-```{r EDA county - eviction rate, echo=TRUE}
+```{r EDA county - eviction rate, echo=FALSE}
 # get top 100 counties with highest average evistion rate
 # eviction_county %>%
 #   group_by(GEOID) %>%
@@ -663,210 +667,161 @@ eviction_county %>%
                linetype="dashed", size=1)
 ```
 
-According to The News & Advance article, who wrote about Lynchburg’s Virginia high eviction rates, stated that most tenants do not go through the court order and end up leaving because they are worried about the uphill battle or the repercussions; most tenants will refuse to rent to formerly evicted residents. From 2008 to 2017, 60% of 21,000 eviction suits were in favor of the landlord whereas the rest were dismissed and less than 1% were won in favor of the tenants. After the Eviction Lab data came out, according to the same article, laws have been passed to help tackle the high eviction rates Virginia has been experiencing. Our chart visualizing the top ten counties by average eviction filing rates during 2010-2016, four of them belonged to Virginia.
+The top ten counties with average eviction rates over the span of the seven years, all belonged to the Southern region with Prince George’s County, Maryland experiencing over 100.00 average eviction filing rates. There are several reasons why we think Maryland has the highest and eviction filing rates over 100. One, according to the Eviction Lab's Methodology Report most jurisdictions start with an out of court notice, whereas Maryland starts immediately with an eviction filing in court. Additionally, as of 2006 landlords can electronically start an eviction filing in Maryland on [Maryland's District Courts website](https://www.courts.state.md.us/district/efile/efilemain). Lastly, Maryland has greater diversity than most of the country with the state being home to ~50% non-whites compared to the [national average](https://www.census.gov/quickfacts/fact/table/US/PST045218) of 24% non-white. 
+
+```{r top_10_trend, echo=FALSE}
+# top and bottom 20 overall counties -- colored by region
+ecplot <- eviction_county_2010 %>%
+  group_by(GEOID) %>% 
+  mutate(avg_ev_fl_rate = mean(eviction_filing_rate, na.rm=TRUE)) %>% 
+  filter(avg_ev_fl_rate >= 0.01) %>%
+  filter(State != "AK" & State != "HI") 
+
+# # Create column for county + state
+# ecplot$County <- str_c(tools::toTitleCase(ecplot$name), ecplot$State, sep = ", ")
+
+# functions to calculate top/bottom rates
+calc_top <- function(df, n) {
+  df <- df %>%
+    group_by(GEOID) %>%
+    arrange(desc(avg_ev_fl_rate)) 
+  result <- c(unique(df$GEOID))[1:n]
+  return(result)
+}
+calc_bot <- function(df, n) {
+  df <- df %>%
+    group_by(GEOID) %>%
+    arrange(avg_ev_fl_rate)
+  result <- c(unique(df$GEOID))[1:n]
+  return(result)
+}
+
+top_ec <- calc_top(df=ecplot, n=10)
+bot_ec <- calc_bot(df=ecplot, n=10)
+
+# functions to plot trend over time
+plot_time <- function(df, vlist, hl) {
+  df %>% 
+  filter(GEOID %in% vlist) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = county_state)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = paste(hl, "Filing Counties Over Time"),
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
+  theme_bw()
+}
+plot_time(ecplot, top_ec, "Highest")
+# plot_time(ecplot, bot_ec, "Lowest")
+```
+
+
+Maryland also experienced a 19% increase in poverty rate from the 1990s to 2016, while seeing a 25% increase in population during that same time according to Washington Top News. Prince George County’s according to our K-means model is similar to San Bernardino County, CA with similar percentages of renter occupied rates, median gross rent, rent burden rates, and property values. San Bernardino County, however, had an even higher poverty rate and higher population, but had a much smaller average eviction filing rate with 6% versus 112%. This shows that there might be something missing from the data that is not being captured in this disparity. The only stark difference in this data from these counties is Prince George’s County has about ⅓ more of people of color. 
+
+
+
+According to an article in [The News & Advance](https://www.newsadvance.com/news/local/three-households-threatened-with-eviction-every-day-in-lynchburg/article_f25bbfa8-8ef9-524c-b745-d5c13db5b258.html), Lynchburg, Virginia experienced high eviction rates. The article explained that most tenants do not go through with the court order and end up leaving because they are worried about the uphill legal battle or the repercussions--most landlords will refuse to rent to formerly evicted residents. From 2008 to 2017, 60% of 21,000 eviction suits were in favor of the landlord whereas the rest were dismissed and less than 1% were won in favor of the tenants. After the Eviction Lab data came out, according to the same article, laws have been passed to help tackle the high eviction rates Virginia has been experiencing. In the above chart visualizing the top ten counties by average eviction filing rates during 2010-2016, four of them belonged to Virginia.
 
 Marion County, South Carolina was the only one out of the top highest average eviction filing rate counties that was predominantly rural. Marion County, similar populations, poverty rates, unemployment rates, and renter occupied rates had stark different eviction rates.
+
+```{r,echo=FALSE}
+# functions to plot trend over time -- coloring by rural flag
+plot_time_rural <- function(df, vlist, hl) {
+  df %>% 
+  filter(GEOID %in% vlist) %>% 
+  ggplot() +
+  geom_line(aes(x = year, 
+                y = eviction_filing_rate, 
+                group = GEOID, 
+                color = rural_flag)) +
+  xlab("Year") +
+  ylab("Eviction Filing Rates") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = paste(hl, "Filing Counties Over Time"),
+       caption = "Data from evictionlab.org") + 
+  scale_color_manual(values=c(spectral[1], spectral[9])) +
+  theme_bw()
+}
+ plot_time_rural(ecplot, top_ec, "Highest")
+# plot_time_rural(ecplot, bot_ec, "Lowest")
+```
+
 The top ten filing counties by regions also seemed to center around the same state, with nine out of the ten highest eviction filing North Central counties all belonging to Michigan. Nine out of the top counties in Northeast all belonged to New Jersey. The top ten western counties were spread out across three states, Colorado, New Mexico, and Nevada, versus a common one. Across the regions, most of the counties with the top eviction filing rates have experienced a decline since 2010, except Lyon County in Nevada, Arapahoe County in Colorado, and Marion County in Indiana.
 
 
-<<Insert images of top 10 per region using grid arrange >>
+```{r trends_region, echo=FALSE}
+# Calculate top and bottom by region
+calc_top_reg <- function(df, reg, n) {
+  new_df <- df %>%
+    filter(region == reg) %>%
+    group_by(GEOID) %>%
+    arrange(desc(avg_ev_fl_rate))
+  res <- c(unique(new_df$GEOID))[1:n]
+  return(res)
+}
+calc_bot_reg <- function(df, reg, n) {
+  new_df <- df %>%
+    filter(region == reg) %>%
+    group_by(GEOID) %>%
+    arrange(avg_ev_fl_rate)
+  res <- c(unique(new_df$GEOID))[1:n]
+  return(res)
+}
 
-<<Insert map of Average Eviction Filing Rate by County>>
-
-We then compared some attributes in the highest filing counties versus the lowest filing counties utilizing histograms and density area graphs overlapping the histograms. The attributes that seemed to differ across these two segments were rental costs, percentage of rural population, the percentage of white population, rent burden, and median household income. The top ten filing counties had lower percentages of rural, white population, and higher concentrated areas of rent burden and a larger spread of median income. 
-
-<<Insert EDA Graphs>>
-
-For our Shiny app, we wanted to have two main components; a map that the user can use to visualize the eviction filing rate data or percent renter occupied data by state for each year, and a an analysis component that a visitor to the app can use to find eviction filing rate data for a county of their choice, and the ability to easily and compare their selection to other counties with similar demographic make-up. The descriptive stats are time series data and the user is able to look at eviction filing rates and X by state from 2010 to 2016. The county level data has a time series graph that trends eviction filing rates or unemployment rates by year of the county selected from the dropdown menu. In the counties tab it also populates a table with averages of some attributes of that county along with 4 other randomly selected cities pertaining to the same cluster such as rural percentage, monthly gross rent, median income, median property value, some demographic percentages, etc. Using this table the user can compare the average eviction filing rate across the county selected and the randomly 4 other selected from the same cluster to see if they also share similar eviction rates.
-
-#Conclusion
-
-After analyzing the Eviction Labs dataset we were able to conclude there may have been some bias and issues within the dataset. The dataset had instances of omitted variable bias. One of them was the information Eviction Labs aggregated from case records did not have demographics or other information of the exact people that were filed against for eviction, except for where the filing occurred which was geocoded by the Eviction Labs from addresses from the case records which then the frequencies were assigned to counties. We had to use Census Bureau data which was a combination of demographic and economic variables at the county level to see if we could find a pattern with eviction filing rates that were filed in the same county across all the counties in the United States during 2010-2016. The makeup/characteristics of the county where the eviction filings occurred were the best estimates on trying to extrapolate patterns across counties. Ideally we would have the demographics from the people evicted. What we found that eviction filing rates correlated positively in counties with  higher diversity rates, higher population, and with higher rental occupancy percentages with higher rental costs.
-
-The second omitted variable bias were access to data in certain states and or counties so estimates/imputations were created by the Eviction Lab. According to the Eviction Lab’s methodology report, any states that did not have statewide coverage statistics of county  level eviction data were not included in the calculations. States whose counties were estimated from state level data were Alaska, North Dakota, South Dakota, and Arkansas. There were also counties that had underestimated eviction counts, including counties that were in the urban parts of New York, California, New Jersey, Maryland, etc. Rural areas also experienced data collection difficulties in states such as Kentucky, Louisiana, Tennessee, Wyoming and the District of Columbia.  For example in California it was stated in the methodology report that many cases that ended in eviction were not publicly accessible and it was hard to access data as a whole. This solidifies our decision to look at eviction filing rates versus actual eviction rates, because data collection can be quite cumbersome across states. Which is why there are higher eviction filing rates and low eviction rates in some areas such as Prince George’s County in Maryland. Additionally, there were missing data for governments in specific years only. For instance, the eviction related data for the District of Columbia was missing for three years in the middle of the collection period.
-
-These data omissions noted could largely affect or impact the conclusions drawn from the dataset, particularly when comparing the eviction related data amongst multiple governments. Due to this, although some governments may have similar demographic and economic makeups which may be consistent with higher eviction filing rates, we may not have the full picture regarding the eviction related data based on the collection methods and availability of data. 
-
-
-
-```{r Distribution of Variables}
-eviction_county %>%
-  filter(year>2009) %>%
-  dplyr::select(-year,-eviction_filings, -evictions,-imputed, -low_flag,-subbed) %>% 
-  mutate(GEOID = as.numeric(GEOID)) %>%
-  keep(is.numeric) %>%
-  group_by(GEOID) %>%
-  # Keep only numeric columns
-  summarise_all(mean,na.rm=TRUE) %>%
-  gather() %>%                             # Convert to key-value pairs
-  ggplot(aes(value)) +                     # Plot the values
-    facet_wrap(~ key, scales = "free") +   # In separate panels
-    geom_density(fill=spectral[1]) +
-  theme_minimal() +
-  ggtitle("Distribution of Variables Eviction Data 2010-2016")
-  
-```
+top_south <- calc_top_reg(ecplot, "South", 10)
+bot_south <- calc_bot_reg(ecplot, "South", 10)
+top_northeast <- calc_top_reg(ecplot, "Northeast", 10)
+bot_northeast <- calc_bot_reg(ecplot, "Northeast", 10)
+top_north_cent <- calc_top_reg(ecplot, "North Central", 10)
+bot_north_cent <- calc_bot_reg(ecplot, "North Central", 10)
+top_west <- calc_top_reg(ecplot, "West", 10)
+bot_west <- calc_bot_reg(ecplot, "West", 10)
 
 
-
-
-```{r EDA county level data}
-# look at data set
-eviction_county %>%
-  group_by(GEOID) 
-ncol(eviction_county)
-summary(eviction_county)
-glimpse(eviction_county)
-```
-
-```{r gganimate eviction for state}
-# look at eviction rate over time per state -- create gganimate
-# this needs to have better formatting for final.
-eviction_state %>%
-  ggplot(aes(x = eviction_filing_rate, y = name)) +
-  geom_point(aes(size = population, fill = rent_burden),
-             shape = 21) +
-  scale_x_log10(breaks = 2^(-1:7)*1000) +
-  scale_size(range = c(1, 20), guide = FALSE) +
-  labs(x = "Eviction Rate",
-       y = "State") +
-  transition_states(year, transition_length = 1,
-                    state_length = 1)+
-  ggtitle("Year showing {closest_state}",
-          subtitle = "Frame {frame} of {nframes}")+
+# Plot top and bottom counties by region
+reg_plot <- function(df, reglist, hv, reg) {
+  df %>%
+    filter(GEOID %in% reglist) %>%
+    ggplot() +
+    geom_line(aes(x = year,
+                  y = eviction_filing_rate,
+                  group = GEOID,
+                  color = county_state)) +
+    xlab("Year") + 
+    ylab("Eviction Filing Rates") + 
+    theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5)) +
+  labs(title = paste(hv, "Filing", reg, "Counties"),
+       caption = "Data from evictionlab.org") + 
+  scale_color_brewer(palette = "Spectral") +
   theme_bw()
-```
+}
 
-```{r set up spatial datasets}
-# get Census TIGER shapefiles for state
-state_us_geo <- tigris::states(class= "sf")
-# add spatial data to the state level eviction data
-eviction_by_state <- eviction_state %>%
-                      left_join(state_us_geo, c("GEOID" = "GEOID"))
-eviction_by_state
-# add spatial data to the county level eviction data
-eviction_by_county <- eviction_county %>%
-                      left_join(county_boundaries, c("GEOID" = "GEOID"))
-eviction_by_county
-```
+tplot_south <- reg_plot(ecplot, top_south, "Highest", "South")
+bplot_south <- reg_plot(ecplot, bot_south, "Lowest", "South")
+tplot_northeast <- reg_plot(ecplot, top_northeast, "Highest", "Northeast")
+bplot_northeast <- reg_plot(ecplot, bot_northeast, "Lowest", "Northeast")
+tplot_north_cent <- reg_plot(ecplot, top_north_cent, "Highest", "North Central")
+bplot_north_cent <- reg_plot(ecplot, bot_north_cent, "Lowest", "North Central")
+tplot_west <- reg_plot(ecplot, top_west, "Highest", "West")
+bplot_west <- reg_plot(ecplot, bot_west, "Lowest", "West")
 
 
-
-
-
-
-
-```{r gganimate eviction for state}
-# look at eviction rate over time per state -- create gganimate
-anim_eviction_state <- eviction_state_2010 %>%
-  ggplot(aes(x = eviction_filing_rate, y = factor(name,
-                                                  levels = rev(levels(factor(name)))))) +
-  geom_point(aes(size = population, fill = rent_burden), 
-             shape = 21) +
-  scale_fill_distiller(palette = "YlGnBu", direction = 1) +
-  scale_x_log10(breaks = 2^(-1:7)*1000) +
-  scale_size(range = c(1, 20), guide = FALSE) +
-  labs(x = "Eviction Rate",
-       y = "State",
-       fill = "Percent Rent Burden") +
-  transition_states(year, transition_length = 1,
-                    state_length = 1)+
-  ggtitle("Year showing {closest_state}",
-          subtitle = "Frame {frame} of {nframes}")+
-  theme_bw() 
-
-anim_eviction_state
-```
-
-```{r gganimate eviction for county}
-# look at eviction rate over time per top 25 counties -- create gganimate
-# this needs to have better formatting for final.
-
-# get top 25 counties with highest average eviction rate
-county_top25_eviction <- eviction_county_2010 %>%
-  group_by(GEOID) %>%
-  summarise(
-    avg_rate = mean(eviction_filing_rate, na.rm = TRUE)
-  ) %>%
-  top_n(25) %>%
-  arrange(desc(avg_rate))
-
-# add data for top 25 highest eviction filing rate
-top25_counties <- county_top25_eviction %>%
-  left_join(eviction_county_2010, by = "GEOID") %>%
-  dplyr::select(everything()) %>%
-  mutate(name_state = str_c(name,", ",State))
-
-
-anim_evic_top25_counties <- top25_counties %>%
-  ggplot(aes(x = eviction_filing_rate, y = factor(name_state,
-                                                  levels = rev(levels(factor(name_state)))))) +
-  geom_point(aes(size = population, fill = rent_burden),
-             shape = 21) +
-   scale_fill_distiller(palette = "YlGnBu", direction = 1) +
-  scale_x_log10(breaks = 2^(-1:7)*1000) +
-  scale_size(range = c(1, 20), guide = FALSE) +
-  labs(x = "Eviction Filing Rate",
-       y = "County",
-       fill = "Percent Rent Burden") +
-  transition_states(year, transition_length = 1,
-                    state_length = 1)+
-  ggtitle("Year showing {closest_state}",
-          subtitle = "Frame {frame} of {nframes}")+
-  theme_bw()
-
-anim_evic_top25_counties 
-```
-
-```{r county EDA}
-top25_counties %>%
-  group_by(parent_location, year) %>%
-  count()
-
-# get bottom 100 counties with lowest average eviction rate
-county_top100_eviction <- eviction_county_2010 %>%
-  group_by(GEOID) %>%
-  summarise(
-    avg_rate = mean(eviction_filing_rate, na.rm = TRUE)
-  ) %>%
-  top_n(100) %>%
-  arrange(desc(avg_rate))
-
-# add data for lowest 100 highest eviction filing rate
-top100_counties <- county_top100_eviction %>%
-  left_join(eviction_county_2010, by = "GEOID") %>%
-  dplyr::select(everything()) %>%
-  mutate(name_state = str_c(name,", ",State))
-
-ggplot(top100_counties, aes(x = pct_renter_occupied, y = eviction_filing_rate)) +
-  geom_point(aes(col = State)) +
-  ggtitle("Eviction Filing Rate vs. Percent Renter Occupied
-  for Counties With Lowest Eviction Filing Rate")
-
-# get bottom 100 counties with lowest average eviction rate
-county_btm100_eviction <- eviction_county_2010 %>%
-  group_by(GEOID) %>%
-  summarise(
-    avg_rate = mean(eviction_filing_rate, na.rm = TRUE)
-  ) %>%
-  top_n(-100) %>%
-  arrange(desc(avg_rate))
-
-# add data for lowest 100 highest eviction filing rate
-btm100_counties <- county_btm100_eviction %>%
-  left_join(eviction_county_2010, by = "GEOID") %>%
-  dplyr::select(everything()) %>%
-  mutate(name_state = str_c(name,", ",State))
-
-ggplot(btm100_counties, aes(x = pct_renter_occupied, y = eviction_filing_rate)) +
-  geom_point(aes(col = State)) +
-  ggtitle("Eviction Filing Rate vs. Percent Renter Occupied
-  for Counties With Lowest Eviction Filing Rate")
+tplot_south
+tplot_northeast
+tplot_north_cent
+tplot_west
+# grid.arrange(bplot_south, bplot_northeast, bplot_north_cent, bplot_west)
 ```
 
 
 
-```{r static county map - set up}
+```{r static county map - set up, include=FALSE}
 
 pretty_breaks <- c(5, 10, 20, 30, 40, 50, 110)
 # find the extremes
@@ -893,7 +848,7 @@ labels_scale <- rev(brks_scale)
 
 ```
 
-```{r map county averages, echo=TRUE}
+```{r map county averages, echo=FALSE,include=FALSE}
 
 ggplot(data = county_all_avgs) +
   geom_sf(aes(fill = brks), color = "black", lwd = 0.01) +
@@ -930,7 +885,231 @@ ggplot(data = county_all_avgs) +
 
 ```
 
-```{r Create Mapping Application Function}
+We then compared some attributes in the highest filing counties versus the lowest filing counties utilizing histograms and density area graphs overlapping the histograms. The attributes that seemed to differ across these two segments were rental costs, percentage of rural population, the percentage of white population, rent burden, and median household income. The top ten filing counties had lower percentages of rural, white population, and higher concentrated areas of rent burden and a larger spread of median income. 
+
+```{r demos_all, echo=FALSE}
+# Demographics for top and bottom
+top_lists <- c(top_south, top_north_cent, top_northeast, top_west)
+bot_lists <- c(bot_south, bot_north_cent, bot_northeast, bot_west)
+
+dense_plot_demos <- function(df, id_list, demog, color_id, demo_name, qual) {
+  demog <- sym(demog)
+  df %>%
+  filter(GEOID %in% id_list) %>%
+  group_by(GEOID) %>%
+  mutate(avg = (mean(!! demog, na.rm=TRUE))) %>%
+  ggplot(aes(x=avg)) + 
+  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
+  geom_density(alpha=.5, fill=color_id) + 
+  theme_bw() + 
+  xlab(demo_name) + 
+  ylab("Density") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = paste(demo_name, "in", qual, "Filing Counties")) 
+}
+
+top_pov <- dense_plot_demos(ecplot, top_lists, "poverty_rate", spectral[1], "Poverty Rate", "Highest")
+bot_pov <- dense_plot_demos(ecplot, bot_lists, "poverty_rate", spectral[1], "Poverty Rate", "Lowest")
+#grid.arrange(top_pov,bot_pov)
+
+top_rb <- dense_plot_demos(ecplot, top_lists, "rent_burden", spectral[2], "Rent Burden", "Highest")
+bot_rb <- dense_plot_demos(ecplot, bot_lists, "rent_burden", spectral[2], "Rent Burden", "Lowest")
+grid.arrange(top_rb,bot_rb)
+
+
+top_pct_wh <- dense_plot_demos(ecplot, top_lists, "pct_white", spectral[3], "% White", "Highest")
+bot_pct_wh <- dense_plot_demos(ecplot, bot_lists, "pct_white", spectral[3], "% White", "Lowest")
+#grid.arrange(top_pct_wh,bot_pct_wh)
+
+
+top_pct_n_wh <- dense_plot_demos(ecplot, top_lists, "pct_nonwhite", spectral[4], "% Nonwhite", "Highest")
+bot_pct_n_wh <- dense_plot_demos(ecplot, bot_lists, "pct_nonwhite", spectral[4], "% Nonwhite", "Lowest")
+grid.arrange(top_pct_n_wh,bot_pct_n_wh)
+
+
+top_hhi <- dense_plot_demos(ecplot, top_lists, "median_household_income", spectral[5], "Median Household Income", "Highest")
+bot_hhi <- dense_plot_demos(ecplot, bot_lists, "median_household_income", spectral[5], "Median Household Income", "Lowest")
+#grid.arrange(top_hhi,bot_hhi)
+
+
+top_uer <- dense_plot_demos(ecplot, top_lists, "unemployment_rate", spectral[6], "Unemployment", "Highest")
+bot_uer <- dense_plot_demos(ecplot, bot_lists, "unemployment_rate", spectral[6], "Unemployment", "Lowest")
+#grid.arrange(top_uer,bot_uer)
+
+
+top_ro <- dense_plot_demos(ecplot, top_lists, "pct_renter_occupied", spectral[7], "% Renter Occupied", "Highest")
+bot_ro <- dense_plot_demos(ecplot, bot_lists, "pct_renter_occupied", spectral[7], "% Renter Occupied", "Lowest")
+grid.arrange(top_ro,bot_ro)
+
+
+top_rur <- dense_plot_demos(ecplot, top_lists, "Percent_Rural", spectral[8], "% Rural", "Highest")
+bot_rur <- dense_plot_demos(ecplot, bot_lists, "Percent_Rural", spectral[8], "% Rural", "Lowest")
+grid.arrange(top_rur,bot_rur)
+
+
+top_gr <- dense_plot_demos(ecplot, top_lists, "median_gross_rent", spectral[9], "Median Gross Rent", "Highest")
+bot_gr <- dense_plot_demos(ecplot, bot_lists, "median_gross_rent", spectral[9], "Median Gross Rent", "Lowest")
+grid.arrange(top_gr,bot_gr)
+```
+
+For our [Shiny app](https://mpuerto.shinyapps.io/Eviction_Shiny/), we wanted to have two main components; a map that the user can use to visualize the eviction filing rate data or percent renter occupied data by state for each year, and a an analysis component that a visitor to the app can use to find eviction filing rate data for a county of their choice, and the ability to easily and compare their selection to other counties with similar demographic make-up. The descriptive stats are time series data and the user is able to look at eviction filing rates and X by state from 2010 to 2016. The county level data has a time series graph that trends eviction filing rates or unemployment rates by year of the county selected from the dropdown menu. In the counties tab it also populates a table with averages of some attributes of that county along with 4 other randomly selected cities pertaining to the same cluster such as rural percentage, monthly gross rent, median income, median property value, some demographic percentages, etc. Using this table the user can compare the average eviction filing rate across the county selected and the randomly four other selected from the same cluster to see if they also share similar eviction rates. Most of the counties were mapped to cluster one, whereas the South makes up the majority of cluster 2, and cluster with the smallest frequency of counties are evenly distributed across regions.
+
+```{r Cluster graphs, echo=FALSE}
+grid.arrange(ggplot(na.omit(eviction_county_2010),aes(cluster,fill=region)) + geom_bar() + scale_fill_brewer("Spectral") + theme(plot.title = element_text(hjust = 0.5)) + ggtitle("Freq Count of Regions by Cluster"),eviction_county_2010 %>%
+  filter(!(is.na(region))) %>%
+  ggplot(aes(cluster)) + 
+  geom_bar(aes(fill=region), position="fill") + 
+  scale_fill_brewer("Spectral") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "% of Regions by Cluster"))
+```
+
+
+After analyzing the Eviction Labs dataset we were able to conclude there may have been some bias and issues within the dataset. The dataset had instances of omitted variable bias. One of them was the information Eviction Labs aggregated from case records did not have demographics or other information of the exact people that were filed against for eviction, except for where the filing occurred which was geocoded by the Eviction Labs from addresses from the case records which then the frequencies were assigned to counties. We had to use Census Bureau data which was a combination of demographic and economic variables at the county level to see if we could find a pattern within eviction filing rates that were filed in the same county across all the counties in the United States during 2010-2016. The makeup/characteristics of the county where the eviction filings occurred were the best estimates on trying to extrapolate patterns across counties. Ideally we would have the demographics from the people evicted. 
+
+The second omitted variable bias were access to data in certain states and/or counties so estimates/imputations were created by the Eviction Lab. According to the Eviction Lab’s methodology report, any states that did not have statewide coverage statistics of county  level eviction data were not included in the calculations. States whose counties were estimated from state level data were Alaska, North Dakota, South Dakota, and Arkansas. There were also counties that had underestimated eviction counts, including counties that were in the urban parts of New York, California, New Jersey, Maryland, etc. Rural areas also experienced data collection difficulties in states such as Kentucky, Louisiana, Tennessee, Wyoming and the District of Columbia. For example in California it was stated in the methodology report that many cases that ended in eviction were not publicly accessible and it was hard to access data as a whole. This solidified our decision to look at eviction filing rates versus actual eviction rates, because data collection can be quite cumbersome across states. Which is why there are higher eviction filing rates and lower eviction rates in some areas such as Prince George’s County in Maryland. Additionally, there were missing data for countiess in specific years only. For instance, the eviction related data for the District of Columbia was missing for three years in the middle of the collection period.
+
+These data omissions noted could impact the conclusions drawn from the dataset, particularly when comparing the eviction-related data among multiple counties. As a result, even in counties with demographic and economic makeups consistent with higher filing rates we may not have the full picture of evictions based on the collection methods and availability of data. However, with the data that was available to us, we can conclude that eviction filing rates positively correlated with higher diversity rates, a larger population, higher rental occupancy, and higher rent burden.
+
+Due to this, although some countiess may have similar demographic and economic makeups which may be consistent with higher eviction filing rates, we may not have the full picture regarding the eviction related data based on the collection methods and availability of data. 
+
+What we found was eviction filing rates correlated positively in counties with  higher diversity rates, higher population, and with higher rental occupancy percentages with higher rental costs.
+
+
+
+```{r Distribution of Variables, include=FALSE}
+
+# EVERYTHING BELOW IS EXTRA EDA
+eviction_county %>%
+  filter(year>2009) %>%
+  dplyr::select(-year,-eviction_filings, -evictions,-imputed, -low_flag,-subbed) %>% 
+  mutate(GEOID = as.numeric(GEOID)) %>%
+  keep(is.numeric) %>%
+  group_by(GEOID) %>%
+  # Keep only numeric columns
+  summarise_all(mean,na.rm=TRUE) %>%
+  gather() %>%                             # Convert to key-value pairs
+  ggplot(aes(value)) +                     # Plot the values
+    facet_wrap(~ key, scales = "free") +   # In separate panels
+    geom_density(fill=spectral[1]) +
+  theme_minimal() +
+  ggtitle("Distribution of Variables Eviction Data 2010-2016")
+  
+```
+
+
+```{r gganimate eviction for state,eval=FALSE, include=FALSE}
+# look at eviction rate over time per state -- create gganimate
+anim_eviction_state <- eviction_state_2010 %>%
+  ggplot(aes(x = eviction_filing_rate, y = factor(name,
+                                                  levels = rev(levels(factor(name)))))) +
+  geom_point(aes(size = population, fill = rent_burden), 
+             shape = 21) +
+  scale_fill_distiller(palette = "YlGnBu", direction = 1) +
+  scale_x_log10(breaks = 2^(-1:7)*1000) +
+  scale_size(range = c(1, 20), guide = FALSE) +
+  labs(x = "Eviction Rate",
+       y = "State",
+       fill = "% Rent Burden") +
+  transition_states(year, transition_length = 1,
+                    state_length = 1)+
+  ggtitle("Year showing {closest_state}",
+          subtitle = "Frame {frame} of {nframes}")+
+  theme_bw() 
+
+anim_eviction_state
+```
+
+```{r gganimate eviction for county,eval=FALSE, include=FALSE}
+# look at eviction rate over time per top 25 counties -- create gganimate
+# this needs to have better formatting for final.
+
+# get top 25 counties with highest average eviction rate
+county_top25_eviction <- eviction_county_2010 %>%
+  group_by(GEOID) %>%
+  summarise(
+    avg_rate = mean(eviction_filing_rate, na.rm = TRUE)
+  ) %>%
+  top_n(25) %>%
+  arrange(desc(avg_rate))
+
+# add data for top 25 highest eviction filing rate
+top25_counties <- county_top25_eviction %>%
+  left_join(eviction_county_2010, by = "GEOID") %>%
+  dplyr::select(everything()) %>%
+  mutate(name_state = str_c(name,", ",State))
+
+
+anim_evic_top25_counties <- top25_counties %>%
+  ggplot(aes(x = eviction_filing_rate, y = factor(name_state,
+                                                  levels = rev(levels(factor(name_state)))))) +
+  geom_point(aes(size = population, fill = rent_burden),
+             shape = 21) +
+   scale_fill_distiller(palette = "YlGnBu", direction = 1) +
+  scale_x_log10(breaks = 2^(-1:7)*1000) +
+  scale_size(range = c(1, 20), guide = FALSE) +
+  labs(x = "Eviction Filing Rate",
+       y = "County",
+       fill = "% Rent Burden") +
+  transition_states(year, transition_length = 1,
+                    state_length = 1)+
+  ggtitle("Year showing {closest_state}",
+          subtitle = "Frame {frame} of {nframes}")+
+  theme_bw()
+
+anim_evic_top25_counties 
+```
+
+```{r county EDA,eval=FALSE, include=FALSE}
+top25_counties %>%
+  group_by(parent_location, year) %>%
+  count()
+
+# get bottom 100 counties with lowest average eviction rate
+county_top100_eviction <- eviction_county_2010 %>%
+  group_by(GEOID) %>%
+  summarise(
+    avg_rate = mean(eviction_filing_rate, na.rm = TRUE)
+  ) %>%
+  top_n(100) %>%
+  arrange(desc(avg_rate))
+
+# add data for lowest 100 highest eviction filing rate
+top100_counties <- county_top100_eviction %>%
+  left_join(eviction_county_2010, by = "GEOID") %>%
+  dplyr::select(everything()) %>%
+  mutate(name_state = str_c(name,", ",State))
+
+ggplot(top100_counties, aes(x = pct_renter_occupied, y = eviction_filing_rate)) +
+  geom_point(aes(col = State)) +
+  ggtitle("Eviction Filing Rate vs. % Renter Occupied
+  for Counties With Lowest Eviction Filing Rate")
+
+# get bottom 100 counties with lowest average eviction rate
+county_btm100_eviction <- eviction_county_2010 %>%
+  group_by(GEOID) %>%
+  summarise(
+    avg_rate = mean(eviction_filing_rate, na.rm = TRUE)
+  ) %>%
+  top_n(-100) %>%
+  arrange(desc(avg_rate))
+
+# add data for lowest 100 highest eviction filing rate
+btm100_counties <- county_btm100_eviction %>%
+  left_join(eviction_county_2010, by = "GEOID") %>%
+  dplyr::select(everything()) %>%
+  mutate(name_state = str_c(name,", ",State))
+
+ggplot(btm100_counties, aes(x = pct_renter_occupied, y = eviction_filing_rate)) +
+  geom_point(aes(col = State)) +
+  ggtitle("Eviction Filing Rate vs. % Renter Occupied
+  for Counties With Lowest Eviction Filing Rate")
+```
+
+
+
+
+```{r Create Mapping Application Function,eval=FALSE, include=FALSE}
 # Create color schemes
 purPal <- colorBin("Reds", domain = state_eviction$eviction_filing_rate, bins = c(0, 5, 10, 20, 30, 40, 50, 100, 120))
 blugr <- colorBin("YlGnBu", domain = state_eviction$pct_renter_occupied, n = 6)
@@ -976,141 +1155,10 @@ map_maker(x)
 
 ```
 
-```{r trends_all, echo=TRUE}
-# top and bottom 20 overall counties -- colored by region
-# Calculate mean filing rate and remove any with missing data over time, or any with an avg rate less than 0.01
-ecplot <- eviction_county_2010 %>%
-  group_by(GEOID) %>% 
-  mutate(avg_ev_fl_rate = mean(eviction_filing_rate, na.rm=TRUE)) %>% 
-  filter(avg_ev_fl_rate >= 0.01) %>%
-  filter(State != "AK" & State != "HI") 
-
-# Create column for county + state
-ecplot$County <- str_c(tools::toTitleCase(ecplot$name), ecplot$State, sep = ", ")
-
-# functions to calculate top/bottom rates
-calc_top <- function(df, n) {
-  df <- df %>%
-    group_by(GEOID) %>%
-    arrange(desc(avg_ev_fl_rate)) 
-  result <- c(unique(df$GEOID))[1:n]
-  return(result)
-}
-calc_bot <- function(df, n) {
-  df <- df %>%
-    group_by(GEOID) %>%
-    arrange(avg_ev_fl_rate)
-  result <- c(unique(df$GEOID))[1:n]
-  return(result)
-}
-
-top_ec <- calc_top(df=ecplot, n=10)
-bot_ec <- calc_bot(df=ecplot, n=10)
-
-# functions to plot trend over time
-plot_time <- function(df, vlist, hl) {
-  df %>% 
-  filter(GEOID %in% vlist) %>% 
-  ggplot() +
-  geom_line(aes(x = year, 
-                y = eviction_filing_rate, 
-                group = GEOID, 
-                color = County)) +
-  xlab("Year") +
-  ylab("Eviction Filing Rates") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = paste(hl, "Filing Counties Over Time"),
-       caption = "Data from evictionlab.org") + 
-  scale_color_brewer(palette = "Spectral") +
-  theme_bw()
-}
-plot_time(ecplot, top_ec, "Highest")
-# plot_time(ecplot, bot_ec, "Lowest")
-
-# functions to plot trend over time -- coloring by rural flag
-plot_time_rural <- function(df, vlist, hl) {
-  df %>% 
-  filter(GEOID %in% vlist) %>% 
-  ggplot() +
-  geom_line(aes(x = year, 
-                y = eviction_filing_rate, 
-                group = GEOID, 
-                color = rural_flag)) +
-  xlab("Year") +
-  ylab("Eviction Filing Rates") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = paste(hl, "Filing Counties Over Time"),
-       caption = "Data from evictionlab.org") + 
-  scale_color_manual(values=c(spectral[9], spectral[11])) +
-  theme_bw()
-}
-# plot_time_rural(ecplot, top_ec, "Highest")
-# plot_time_rural(ecplot, bot_ec, "Lowest")
-```
-
-```{r trends_region, echo=TRUE}
-# Calculate top and bottom by region
-calc_top_reg <- function(df, reg, n) {
-  new_df <- df %>%
-    filter(region == reg) %>%
-    group_by(GEOID) %>%
-    arrange(desc(avg_ev_fl_rate))
-  res <- c(unique(new_df$GEOID))[1:n]
-  return(res)
-}
-calc_bot_reg <- function(df, reg, n) {
-  new_df <- df %>%
-    filter(region == reg) %>%
-    group_by(GEOID) %>%
-    arrange(avg_ev_fl_rate)
-  res <- c(unique(new_df$GEOID))[1:n]
-  return(res)
-}
-
-top_south <- calc_top_reg(ecplot, "South", 10)
-bot_south <- calc_bot_reg(ecplot, "South", 10)
-top_northeast <- calc_top_reg(ecplot, "Northeast", 10)
-bot_northeast <- calc_bot_reg(ecplot, "Northeast", 10)
-top_north_cent <- calc_top_reg(ecplot, "North Central", 10)
-bot_north_cent <- calc_bot_reg(ecplot, "North Central", 10)
-top_west <- calc_top_reg(ecplot, "West", 10)
-bot_west <- calc_bot_reg(ecplot, "West", 10)
 
 
-# Plot top and bottom counties by region
-reg_plot <- function(df, reglist, hv, reg) {
-  df %>%
-    filter(GEOID %in% reglist) %>%
-    ggplot() +
-    geom_line(aes(x = year,
-                  y = eviction_filing_rate,
-                  group = GEOID,
-                  color = County)) +
-    xlab("Year") + 
-    ylab("Eviction Filing Rates") + 
-    theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.subtitle = element_text(hjust = 0.5)) +
-  labs(title = paste(hv, "Filing", reg, "Counties"),
-       caption = "Data from evictionlab.org") + 
-  scale_color_brewer(palette = "Spectral") +
-  theme_bw()
-}
 
-tplot_south <- reg_plot(ecplot, top_south, "Highest", "South")
-bplot_south <- reg_plot(ecplot, bot_south, "Lowest", "South")
-tplot_northeast <- reg_plot(ecplot, top_northeast, "Highest", "Northeast")
-bplot_northeast <- reg_plot(ecplot, bot_northeast, "Lowest", "Northeast")
-tplot_north_cent <- reg_plot(ecplot, top_north_cent, "Highest", "North Central")
-bplot_north_cent <- reg_plot(ecplot, bot_north_cent, "Lowest", "North Central")
-tplot_west <- reg_plot(ecplot, top_west, "Highest", "West")
-bplot_west <- reg_plot(ecplot, bot_west, "Lowest", "West")
-
-
-grid.arrange(tplot_south, tplot_northeast, tplot_north_cent, tplot_west)
-grid.arrange(bplot_south, bplot_northeast, bplot_north_cent, bplot_west)
-```
-
-```{r trends_region_rural}
+```{r trends_region_rural, include=FALSE}
 # Plot top and bottom counties by region
 reg_plot_rural <- function(df, reglist, hv, reg) {
   df %>%
@@ -1144,72 +1192,9 @@ grid.arrange(tplot_south_rural, tplot_northeast_rural, tplot_north_cent_rural, t
 grid.arrange(bplot_south_rural, bplot_northeast_rural, bplot_north_cent_rural, bplot_west_rural)
 ```
 
-```{r demos_all, echo=TRUE}
-# Demographics for top and bottom
-top_lists <- c(top_south, top_north_cent, top_northeast, top_west)
-bot_lists <- c(bot_south, bot_north_cent, bot_northeast, bot_west)
-
-dense_plot_demos <- function(df, id_list, demog, color_id, demo_name, qual) {
-  demog <- sym(demog)
-  df %>%
-  filter(GEOID %in% id_list) %>%
-  group_by(GEOID) %>%
-  mutate(avg = (mean(!! demog, na.rm=TRUE))) %>%
-  ggplot(aes(x=avg)) + 
-  geom_histogram(aes(y=..density..), color="black", fill="white", bins=20) + 
-  geom_density(alpha=.5, fill=color_id) + 
-  theme_bw() + 
-  xlab(demo_name) + 
-  ylab("Density") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = paste(demo_name, "in", qual, "Filing Counties")) 
-}
-
-top_pov <- dense_plot_demos(ecplot, top_lists, "poverty_rate", spectral[1], "Poverty Rate", "Highest")
-bot_pov <- dense_plot_demos(ecplot, bot_lists, "poverty_rate", spectral[1], "Poverty Rate", "Lowest")
-grid.arrange(top_pov,bot_pov)
-
-top_rb <- dense_plot_demos(ecplot, top_lists, "rent_burden", spectral[2], "Rent Burden", "Highest")
-bot_rb <- dense_plot_demos(ecplot, bot_lists, "rent_burden", spectral[2], "Rent Burden", "Lowest")
-grid.arrange(top_rb,bot_rb)
 
 
-top_pct_wh <- dense_plot_demos(ecplot, top_lists, "pct_white", spectral[3], "% White", "Highest")
-bot_pct_wh <- dense_plot_demos(ecplot, bot_lists, "pct_white", spectral[3], "% White", "Lowest")
-grid.arrange(top_pct_wh,bot_pct_wh)
-
-
-top_pct_n_wh <- dense_plot_demos(ecplot, top_lists, "pct_nonwhite", spectral[4], "% Nonwhite", "Highest")
-bot_pct_n_wh <- dense_plot_demos(ecplot, bot_lists, "pct_nonwhite", spectral[4], "% Nonwhite", "Lowest")
-grid.arrange(top_pct_n_wh,bot_pct_n_wh)
-
-
-top_hhi <- dense_plot_demos(ecplot, top_lists, "median_household_income", spectral[5], "Median Household Income", "Highest")
-bot_hhi <- dense_plot_demos(ecplot, bot_lists, "median_household_income", spectral[5], "Median Household Income", "Lowest")
-grid.arrange(top_hhi,bot_hhi)
-
-
-top_uer <- dense_plot_demos(ecplot, top_lists, "unemployment_rate", spectral[6], "Unemployment", "Highest")
-bot_uer <- dense_plot_demos(ecplot, bot_lists, "unemployment_rate", spectral[6], "Unemployment", "Lowest")
-grid.arrange(top_uer,bot_uer)
-
-
-top_ro <- dense_plot_demos(ecplot, top_lists, "pct_renter_occupied", spectral[7], "% Renter Occupied", "Highest")
-bot_ro <- dense_plot_demos(ecplot, bot_lists, "pct_renter_occupied", spectral[7], "% Renter Occupied", "Lowest")
-grid.arrange(top_ro,bot_ro)
-
-
-top_rur <- dense_plot_demos(ecplot, top_lists, "Percent_Rural", spectral[8], "% Rural", "Highest")
-bot_rur <- dense_plot_demos(ecplot, bot_lists, "Percent_Rural", spectral[8], "% Rural", "Lowest")
-grid.arrange(top_rur,bot_rur)
-
-
-top_gr <- dense_plot_demos(ecplot, top_lists, "median_gross_rent", spectral[9], "Median Gross Rent", "Highest")
-bot_gr <- dense_plot_demos(ecplot, bot_lists, "median_gross_rent", spectral[9], "Median Gross Rent", "Lowest")
-grid.arrange(top_gr,bot_gr)
-```
-
-```{r plot rates by cluster, echo=TRUE}
+```{r plot rates by cluster, echo=FALSE, include=FALSE}
 ec1 <- eviction_county_2010 %>% filter(cluster == 1) %>% sample_n(10)
 ec2 <- eviction_county_2010 %>% filter(cluster == 2) %>% sample_n(10)
 ec3 <- eviction_county_2010 %>% filter(cluster == 3) %>% sample_n(10)
@@ -1236,3 +1221,11 @@ eviction_county_2010 %>%
   theme_bw()
 ```
 
+
+
+# References
+
+Methodology Report: Matthew Desmond, Ashley Gromis, Lavar Edmonds, James
+Hendrickson, Katie Krywokulski, Lillian Leung, and Adam Porton. Eviction Lab
+Methodology Report: Version 1.0. Princeton: Princeton University, 2018,
+www.evictionlab.org/methods.
