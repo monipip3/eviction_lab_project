@@ -22,31 +22,26 @@ eviction_by_state <- read_csv("./eviction_state_2010.csv")
 
 state_us_geo <- tigris::states(class= "sf")
 spatial_state <- as_Spatial(state_us_geo)
-state_eviction <- sp::merge(spatial_state, 
-                            eviction_by_state, 
-                            by = c("GEOID" = "GEOID"), 
-                            duplicateGeoms = TRUE)
-state_eviction <- sp.na.omit(state_eviction, 
-                             margin = 1)
+state_eviction <- sp::merge(spatial_state, eviction_by_state, by = c("GEOID" = "GEOID"), duplicateGeoms = TRUE)
 
 
 map_maker <- function(x, y){
-  purPal <- colorQuantile("PuBuGn", 
-                          domain = y$eviction_filing_rate, 
-                          n = 6)
-  blugr <- colorQuantile("YlGnBu", 
-                         domain = y$pct_renter_occupied, 
-                         n = 6)
+  purPal <- colorBin("Reds", domain = y$eviction_filing_rate, bins = c(0, 5, 10, 20, 30, 40, 50, 100, 120))
+  blugr <- colorBin("YlGnBu", domain = y$pct_renter_occupied, n = 6)
   
-  popup_evic <- paste0("<strong>", y$name,
-                       "<strong><br />Median HH Income: <strong>", y$median_household_income)
+  popup_evic <- paste0("<b>","<center>", y$name,
+                       "</b>","</center>",
+                       "<br />Median HH Income: $", y$median_household_income,
+                       "<br />Population: ", y$population,
+                       "<br />Percent Rent Burden: ", y$rent_burden,
+                       "<br />Eviction Filing Rate: ", y$eviction_filing_rate)
   
   if (x == "Eviction Filing Rate") {
     leaflet() %>% 
       setView(-98.483330, 38.712046, zoom = 3) %>%
       addProviderTiles(providers$CartoDB.Positron) %>%
       addPolygons(data = y, fillColor = ~purPal(y$eviction_filing_rate), 
-                  smoothFactor = 0.2, fillOpacity = .7, weight = 0.2,
+                  smoothFactor = 0.2, fillOpacity = .9, weight = 0.2,
                   popup = ~popup_evic) %>%
       addLegend(purPal,
                 values = y$eviction_filing_rate,
@@ -54,16 +49,17 @@ map_maker <- function(x, y){
                 title = "Eviction Filing <br/ > Rates")
   }else{
     leaflet() %>% 
-      setView(lng = -93.85, lat = 37.45, zoom = 3) %>%
+      setView(-98.483330, 38.712046, zoom = 3) %>%
       addProviderTiles(providers$CartoDB.Positron) %>%
       addPolygons(data = y, 
                   fillColor = ~blugr(y$pct_renter_occupied),
-                  smoothFactor = 0.2, fillOpacity = .7, weight = 0.2,
+                  smoothFactor = 0.2, fillOpacity = .9, weight = 0.2,
                   popup = ~popup_evic) %>%
       addLegend(blugr,
                 values = y$pct_renter_occupied,
                 position = "bottomleft",
-                title = "Percent Renter Occupied") }}
+                title = "Percent <br/ > Renter Occupied") }
+}
 
 ui <- fluidPage(
   titlePanel("Eviction Filings in the United States"),
@@ -92,7 +88,8 @@ ui <- fluidPage(
       ),
       selectInput(
         'ycol', 'Y Variable', 
-        choices = c('eviction_filing_rate','unemployment_rate'
+        choices = c("Eviction Filing Rate" = 'eviction_filing_rate',
+                    "Unemployment Rate" = 'unemployment_rate'
         )),
         actionButton(
           inputId = "graph", "Create a Trendline"
@@ -102,8 +99,6 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(type = "tabs",
                   tabPanel("Map States", leafletOutput("map")),
-                  # tabPanel("County Trends", plotOutput("county_trendlines")),
-                  # tabPanel("Compare Counties", tableOutput("similar_counties"))
                   tabPanel("Counties", plotOutput("county_trendlines"), tableOutput("similar_counties"))
       )
     )
