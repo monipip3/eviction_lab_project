@@ -344,7 +344,7 @@ eviction_county_2010 <- eviction_county %>%
   mutate(rural_flag = as.character(rural_flag))
 eviction_county_2010$region[eviction_county_2010$name == "District of Columbia"] <- "South"
 # load color palette
-color_pal <- c(brewer.pal(11, "Spectral"))
+spectral <- c(brewer.pal(11, "Spectral"))
 ```
 
 ```{r trends_all}
@@ -414,7 +414,7 @@ plot_time_rural <- function(df, vlist, hl) {
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = paste(hl, "Filing Counties Over Time"),
        caption = "Data from evictionlab.org") + 
-  scale_color_manual(values=c(color_pal[9], color_pal[11])) +
+  scale_color_manual(values=c(spectral[9], spectral[11])) +
   theme_bw()
 }
 top_filers_rural <- plot_time_rural(ecplot, top_ec, "Highest")
@@ -513,7 +513,7 @@ reg_plot_rural <- function(df, reglist, hv, reg) {
   theme(plot.subtitle = element_text(hjust = 0.5)) +
   labs(title = paste(hv, "Filing", reg, "Counties"),
        caption = "Data from evictionlab.org") + 
-  scale_color_manual(values=c(color_pal[9], color_pal[11])) +
+  scale_color_manual(values=c(spectral[9], spectral[11])) +
   theme_bw()
 }
 
@@ -564,63 +564,63 @@ dense_plot_demos <- function(df, id_list, demog, color_id, demo_name, qual) {
   labs(title = paste(demo_name, "in", qual, "Filing Counties")) 
 }
 
-top_pov <- dense_plot_demos(ecplot, top_lists, "poverty_rate", color_pal[1], "Poverty Rate", "Highest")
-bot_pov <- dense_plot_demos(ecplot, bot_lists, "poverty_rate", color_pal[1], "Poverty Rate", "Lowest")
+top_pov <- dense_plot_demos(ecplot, top_lists, "poverty_rate", spectral[1], "Poverty Rate", "Highest")
+bot_pov <- dense_plot_demos(ecplot, bot_lists, "poverty_rate", spectral[1], "Poverty Rate", "Lowest")
 grid.arrange(top_pov,bot_pov)
 g <- arrangeGrob(top_pov,bot_pov)
 ggsave(file="./fig/pov_dist.png", g)
 
-top_rb <- dense_plot_demos(ecplot, top_lists, "rent_burden", color_pal[2], "Rent Burden", "Highest")
-bot_rb <- dense_plot_demos(ecplot, bot_lists, "rent_burden", color_pal[2], "Rent Burden", "Lowest")
+top_rb <- dense_plot_demos(ecplot, top_lists, "rent_burden", spectral[2], "Rent Burden", "Highest")
+bot_rb <- dense_plot_demos(ecplot, bot_lists, "rent_burden", spectral[2], "Rent Burden", "Lowest")
 grid.arrange(top_rb,bot_rb)
 g <- arrangeGrob(top_rb,bot_rb)
 ggsave(file="./fig/rb_dist.png", g)
 
 
-top_pct_wh <- dense_plot_demos(ecplot, top_lists, "pct_white", color_pal[3], "% White", "Highest")
-bot_pct_wh <- dense_plot_demos(ecplot, bot_lists, "pct_white", color_pal[3], "% White", "Lowest")
+top_pct_wh <- dense_plot_demos(ecplot, top_lists, "pct_white", spectral[3], "% White", "Highest")
+bot_pct_wh <- dense_plot_demos(ecplot, bot_lists, "pct_white", spectral[3], "% White", "Lowest")
 grid.arrange(top_pct_wh,bot_pct_wh)
 g <- arrangeGrob(top_pct_wh,bot_pct_wh)
 ggsave(file="./fig/pct_wh_dist.png", g)
 
 
-top_pct_n_wh <- dense_plot_demos(ecplot, top_lists, "pct_nonwhite", color_pal[4], "% Nonwhite", "Highest")
-bot_pct_n_wh <- dense_plot_demos(ecplot, bot_lists, "pct_nonwhite", color_pal[4], "% Nonwhite", "Lowest")
+top_pct_n_wh <- dense_plot_demos(ecplot, top_lists, "pct_nonwhite", spectral[4], "% Nonwhite", "Highest")
+bot_pct_n_wh <- dense_plot_demos(ecplot, bot_lists, "pct_nonwhite", spectral[4], "% Nonwhite", "Lowest")
 grid.arrange(top_pct_n_wh,bot_pct_n_wh)
 g <- arrangeGrob(top_pct_n_wh,bot_pct_n_wh)
 ggsave(file="./fig/pct_n_wh_dist.png", g)
 
 
-top_hhi <- dense_plot_demos(ecplot, top_lists, "median_household_income", color_pal[5], "Median Household Income", "Highest")
-bot_hhi <- dense_plot_demos(ecplot, bot_lists, "median_household_income", color_pal[5], "Median Household Income", "Lowest")
+top_hhi <- dense_plot_demos(ecplot, top_lists, "median_household_income", spectral[5], "Median Household Income", "Highest")
+bot_hhi <- dense_plot_demos(ecplot, bot_lists, "median_household_income", spectral[5], "Median Household Income", "Lowest")
 grid.arrange(top_hhi,bot_hhi)
 g <- arrangeGrob(top_hhi,bot_hhi)
 ggsave(file="./fig/hhi_dist.png", g)
 
 
-top_uer <- dense_plot_demos(ecplot, top_lists, "unemployment_rate", color_pal[6], "Unemployment", "Highest")
-bot_uer <- dense_plot_demos(ecplot, bot_lists, "unemployment_rate", color_pal[6], "Unemployment", "Lowest")
+top_uer <- dense_plot_demos(ecplot, top_lists, "unemployment_rate", spectral[6], "Unemployment", "Highest")
+bot_uer <- dense_plot_demos(ecplot, bot_lists, "unemployment_rate", spectral[6], "Unemployment", "Lowest")
 grid.arrange(top_uer,bot_uer)
 g <- arrangeGrob(top_uer,bot_uer)
 ggsave(file="./fig/uer_dist.png", g)
 
 
-top_ro <- dense_plot_demos(ecplot, top_lists, "pct_renter_occupied", color_pal[7], "% Renter Occupied", "Highest")
-bot_ro <- dense_plot_demos(ecplot, bot_lists, "pct_renter_occupied", color_pal[7], "% Renter Occupied", "Lowest")
+top_ro <- dense_plot_demos(ecplot, top_lists, "pct_renter_occupied", spectral[7], "% Renter Occupied", "Highest")
+bot_ro <- dense_plot_demos(ecplot, bot_lists, "pct_renter_occupied", spectral[7], "% Renter Occupied", "Lowest")
 grid.arrange(top_ro,bot_ro)
 g <- arrangeGrob(top_ro,bot_ro)
 ggsave(file="./fig/ro_dist.png", g)
 
 
-top_rur <- dense_plot_demos(ecplot, top_lists, "Percent_Rural", color_pal[8], "% Rural", "Highest")
-bot_rur <- dense_plot_demos(ecplot, bot_lists, "Percent_Rural", color_pal[8], "% Rural", "Lowest")
+top_rur <- dense_plot_demos(ecplot, top_lists, "Percent_Rural", spectral[8], "% Rural", "Highest")
+bot_rur <- dense_plot_demos(ecplot, bot_lists, "Percent_Rural", spectral[8], "% Rural", "Lowest")
 grid.arrange(top_rur,bot_rur)
 g <- arrangeGrob(top_rur,bot_rur)
 ggsave(file="./fig/rur_dist.png", g)
 
 
-top_gr <- dense_plot_demos(ecplot, top_lists, "median_gross_rent", color_pal[9], "Median Gross Rent", "Highest")
-bot_gr <- dense_plot_demos(ecplot, bot_lists, "median_gross_rent", color_pal[9], "Median Gross Rent", "Lowest")
+top_gr <- dense_plot_demos(ecplot, top_lists, "median_gross_rent", spectral[9], "Median Gross Rent", "Highest")
+bot_gr <- dense_plot_demos(ecplot, bot_lists, "median_gross_rent", spectral[9], "Median Gross Rent", "Lowest")
 grid.arrange(top_gr,bot_gr)
 g <- arrangeGrob(top_gr,bot_gr)
 ggsave(file="./fig/gr_dist.png", g)
@@ -719,62 +719,62 @@ ggsave(file="./fig/bplot_reg_rur_pop.png", g)
 ptop_lists <- c(ptop_south, ptop_north_cent, ptop_northeast, ptop_west)
 pbot_lists <- c(pbot_south, pbot_north_cent, pbot_northeast, pbot_west)
 
-ptop_pov <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "poverty_rate", color_pal[1], "Poverty Rate", "Highest")
-pbot_pov <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "poverty_rate", color_pal[1], "Poverty Rate", "Lowest")
+ptop_pov <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "poverty_rate", spectral[1], "Poverty Rate", "Highest")
+pbot_pov <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "poverty_rate", spectral[1], "Poverty Rate", "Lowest")
 grid.arrange(ptop_pov,pbot_pov)
 g <- arrangeGrob(ptop_pov,pbot_pov)
 ggsave(file="./fig/pov_dist_pop.png", g)
 
-ptop_rb <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "rent_burden", color_pal[2], "Rent Burden", "Highest")
-pbot_rb <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "rent_burden", color_pal[2], "Rent Burden", "Lowest")
+ptop_rb <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "rent_burden", spectral[2], "Rent Burden", "Highest")
+pbot_rb <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "rent_burden", spectral[2], "Rent Burden", "Lowest")
 grid.arrange(ptop_rb,pbot_rb)
 g <- arrangeGrob(ptop_rb,pbot_rb)
 ggsave(file="./fig/rb_dist_pop.png", g)
 
-ptop_pct_wh <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "pct_white", color_pal[3], "% White", "Highest")
-pbot_pct_wh <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "pct_white", color_pal[3], "% White", "Lowest")
+ptop_pct_wh <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "pct_white", spectral[3], "% White", "Highest")
+pbot_pct_wh <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "pct_white", spectral[3], "% White", "Lowest")
 grid.arrange(ptop_pct_wh,pbot_pct_wh)
 g <- arrangeGrob(ptop_pct_wh,pbot_pct_wh)
 ggsave(file="./fig/pct_wh_dist_pop.png", g)
 
 
-ptop_pct_n_wh <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "pct_nonwhite", color_pal[4], "% Nonwhite", "Highest")
-pbot_pct_n_wh <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "pct_nonwhite", color_pal[4], "% Nonwhite", "Lowest")
+ptop_pct_n_wh <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "pct_nonwhite", spectral[4], "% Nonwhite", "Highest")
+pbot_pct_n_wh <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "pct_nonwhite", spectral[4], "% Nonwhite", "Lowest")
 grid.arrange(ptop_pct_n_wh,pbot_pct_n_wh)
 g <- arrangeGrob(ptop_pct_n_wh,pbot_pct_n_wh)
 ggsave(file="./fig/pct_n_wh_dist_pop.png", g)
 
 
-ptop_hhi <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "median_household_income", color_pal[5], "Median Household Income", "Highest")
-pbot_hhi <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "median_household_income", color_pal[5], "Median Household Income", "Lowest")
+ptop_hhi <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "median_household_income", spectral[5], "Median Household Income", "Highest")
+pbot_hhi <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "median_household_income", spectral[5], "Median Household Income", "Lowest")
 grid.arrange(ptop_hhi,pbot_hhi)
 g <- arrangeGrob(ptop_hhi,pbot_hhi)
 ggsave(file="./fig/hhi_dist_pop.png", g)
 
 
-ptop_uer <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "unemployment_rate", color_pal[6], "Unemployment", "Highest")
-pbot_uer <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "unemployment_rate", color_pal[6], "Unemployment", "Lowest")
+ptop_uer <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "unemployment_rate", spectral[6], "Unemployment", "Highest")
+pbot_uer <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "unemployment_rate", spectral[6], "Unemployment", "Lowest")
 grid.arrange(ptop_uer,pbot_uer)
 g <- arrangeGrob(ptop_uer,pbot_uer)
 ggsave(file="./fig/uer_dist_pop.png", g)
 
 
-ptop_ro <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "pct_renter_occupied", color_pal[7], "% Renter Occupied", "Highest")
-pbot_ro <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "pct_renter_occupied", color_pal[7], "% Renter Occupied", "Lowest")
+ptop_ro <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "pct_renter_occupied", spectral[7], "% Renter Occupied", "Highest")
+pbot_ro <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "pct_renter_occupied", spectral[7], "% Renter Occupied", "Lowest")
 grid.arrange(ptop_ro,pbot_ro)
 g <- arrangeGrob(ptop_ro,pbot_ro)
 ggsave(file="./fig/ro_dist_pop.png", g)
 
 
-ptop_rur <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "Percent_Rural", color_pal[8], "% Rural", "Highest")
-pbot_rur <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "Percent_Rural", color_pal[8], "% Rural", "Lowest")
+ptop_rur <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "Percent_Rural", spectral[8], "% Rural", "Highest")
+pbot_rur <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "Percent_Rural", spectral[8], "% Rural", "Lowest")
 grid.arrange(ptop_rur,pbot_rur)
 g <- arrangeGrob(ptop_rur,pbot_rur)
 ggsave(file="./fig/rur_dist_pop.png", g)
 
 
-ptop_gr <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "median_gross_rent", color_pal[9], "Median Gross Rent", "Highest")
-pbot_gr <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "median_gross_rent", color_pal[9], "Median Gross Rent", "Lowest")
+ptop_gr <- dense_plot_demos(ecplot_gte_mean, ptop_lists, "median_gross_rent", spectral[9], "Median Gross Rent", "Highest")
+pbot_gr <- dense_plot_demos(ecplot_gte_mean, pbot_lists, "median_gross_rent", spectral[9], "Median Gross Rent", "Lowest")
 grid.arrange(ptop_gr,pbot_gr)
 g <- arrangeGrob(ptop_gr,pbot_gr)
 ggsave(file="./fig/gr_dist_pop.png", g)
@@ -983,7 +983,7 @@ thw_km7 <- table(km$hw_km7)
 ```
 
 ```{r cluster_eda}
-km$cluster <- thw_km3$cluster
+km$cluster <- hw_km3$cluster
 
 geo_clust <- subset(km, select = c("GEOID", "cluster"))
 eviction_county_2010 <- merge(eviction_county_2010, geo_clust)
