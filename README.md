@@ -1,7 +1,6 @@
 # eviction_lab_project
 
-This is our Read ME
+Link to our data visualization tool via Shiny!
 
-
-Monica test
+https://mpuerto.shinyapps.io/Eviction_Shiny/ 
 
